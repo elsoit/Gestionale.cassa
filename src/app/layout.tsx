@@ -2,7 +2,7 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
-
+import { Sidebar } from "./components/sidebar";
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useState } from 'react'
 
@@ -17,8 +17,6 @@ const geistMono = localFont({
   weight: "100 900",
 });
 
-
-
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -26,15 +24,14 @@ export default function RootLayout({
 }>) {
   const [queryClient] = useState(() => new QueryClient())
   return (
-    <html lang="en" className = " color-scheme:light">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-                <QueryClientProvider client={queryClient}>
-
-        {children}
+    <html lang="en" className="color-scheme:light">
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+        <QueryClientProvider client={queryClient}>
+          <Sidebar />
+          <main className="pl-16">
+            {children}
+          </main>
         </QueryClientProvider>
-
       </body>
     </html>
   );
