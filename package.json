@@ -28,6 +28,7 @@
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
     "cmdk": "^1.0.0",
+    "date-fns": "^4.1.0",
     "jsbarcode": "^3.11.6",
     "jspdf": "^2.5.2",
     "jspdf-autotable": "^3.8.4",
