@@ -475,38 +475,6 @@ export default function LoadDetailPage() {
     setSelectedAction(null)
   }
 
-  const handleConfirmLoad = async () => {
-    if (!load || isConfirming) return
-
-    try {
-      setIsConfirming(true)
-      const response = await fetch(`http://localhost:3003/api/loads/${id}/confirm`, {
-        method: 'PUT',
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to confirm load')
-      }
-
-      toast({
-        title: "Successo",
-        description: "Carico confermato con successo",
-      })
-
-      // Refresh load details to get updated status
-      await fetchLoadDetails()
-    } catch (error) {
-      console.error(error)
-      toast({
-        title: "Errore",
-        description: "Errore durante la conferma del carico",
-        variant: "destructive",
-      })
-    } finally {
-      setIsConfirming(false)
-    }
-  }
-
   const handleRevokeLoad = async () => {
     if (!load || isRevoking) return
 
