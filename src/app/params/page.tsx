@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Search, Settings as SettingsIcon, Plus, MoreHorizontal, Euro, CreditCard, Link2, FileText, Wallet, Banknote, QrCode, Smartphone } from 'lucide-react'
+import { Search, Settings as SettingsIcon, Plus, MoreHorizontal, Euro, CreditCard, Link2, Ticket, Wallet, Banknote, QrCode, Smartphone } from 'lucide-react'
 import { Switch } from "@/components/ui/switch"
 import {
   Table,
@@ -120,7 +120,7 @@ const paymentIcons = [
   { name: 'Euro', icon: Euro },
   { name: 'CreditCard', icon: CreditCard },
   { name: 'Link2', icon: Link2 },
-  { name: 'FileText', icon: FileText },
+  { name: 'Ticket', icon: Ticket },
   { name: 'Wallet', icon: Wallet },
   { name: 'Banknote', icon: Banknote },
   { name: 'QrCode', icon: QrCode },
@@ -151,7 +151,7 @@ function DataTable({ data, columns, onEdit, onDelete, section }: { data: any[], 
                     {item[column] === 'Euro' && <Euro className="h-4 w-4" />}
                     {item[column] === 'CreditCard' && <CreditCard className="h-4 w-4" />}
                     {item[column] === 'Link2' && <Link2 className="h-4 w-4" />}
-                    {item[column] === 'FileText' && <FileText className="h-4 w-4" />}
+                    {item[column] === 'Ticket' && <Ticket className="h-4 w-4" />}
                     {item[column] === 'Wallet' && <Wallet className="h-4 w-4" />}
                     {item[column] === 'Banknote' && <Banknote className="h-4 w-4" />}
                     {item[column] === 'QrCode' && <QrCode className="h-4 w-4" />}

@@ -1,101 +1,318 @@
-import Image from "next/image";
+'use client'
 
-export default function Home() {
+import React, { useEffect, useState } from 'react'
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Overview } from "@/components/Overview"
+import { RecentSales } from "@/components/RecentSales"
+import { TopProducts } from "@/components/TopProducts"
+import { Button } from "@/components/ui/button"
+import { CalendarDateRangePicker } from "@/components/date-range-picker"
+import { Calendar, DollarSign, Package, ShoppingCart, TrendingUp } from "lucide-react"
+import { Skeleton } from "@/components/ui/skeleton"
+import { DateRange } from "react-day-picker"
+import { format } from "date-fns"
+
+interface SalesData {
+  totalSales: number
+  totalRevenue: number
+  averageOrderValue: number
+  totalProducts: number
+  topProducts: Array<{
+    id: number
+    name: string
+    article_code: string
+    variant_code: string
+    quantity: number
+    revenue: number
+    orders_count: number
+  }>
+  recentSales: Array<{
+    id: number
+    code: string
+    total: number
+    date: string
+    status_id: number
+    status_name: string
+    client_name: string
+    punto_vendita_name: string
+    operator_name: string
+    operator_surname: string
+    items: Array<{
+      product_id: number
+      name: string
+      quantity: number
+      total: number
+    }>
+  }>
+  salesByDay: Array<{
+    date: string
+    orders_count: number
+    total_revenue: number
+    average_order_value: number
+    unique_customers: number
+  }>
+}
+
+const initialSalesData: SalesData = {
+  totalSales: 0,
+  totalRevenue: 0,
+  averageOrderValue: 0,
+  totalProducts: 0,
+  topProducts: [],
+  recentSales: [],
+  salesByDay: []
+}
+
+export default function DashboardPage() {
+  const [salesData, setSalesData] = useState<SalesData>(initialSalesData)
+  const [isLoading, setIsLoading] = useState(true)
+  const [dateRange, setDateRange] = useState<DateRange>({
+    from: new Date(),
+    to: new Date()
+  })
+
+  const fetchData = async (from?: Date, to?: Date) => {
+    try {
+      setIsLoading(true)
+      
+      // Costruisci i parametri della query
+      const params = new URLSearchParams()
+      if (from) params.append('from', format(from, 'yyyy-MM-dd'))
+      if (to) params.append('to', format(to, 'yyyy-MM-dd'))
+      
+      const queryString = params.toString()
+      const baseUrl = 'http://localhost:3003/api/orders/dashboard'
+      
+      // Fetch dashboard stats with date range
+      const statsResponse = await fetch(`${baseUrl}/stats?${queryString}`)
+      const statsData = await statsResponse.json()
+
+      // Fetch top products with date range
+      const topProductsResponse = await fetch(`${baseUrl}/top-products?${queryString}`)
+      const topProductsData = await topProductsResponse.json()
+
+      // Fetch recent sales with date range
+      const recentSalesResponse = await fetch(`${baseUrl}/recent-sales?${queryString}`)
+      const recentSalesData = await recentSalesResponse.json()
+
+      // Fetch sales by day with date range
+      const salesByDayResponse = await fetch(`${baseUrl}/sales-by-day?${queryString}`)
+      const salesByDayData = await salesByDayResponse.json()
+
+      setSalesData({
+        totalSales: Number(statsData?.totalSales) || 0,
+        totalRevenue: Number(statsData?.totalRevenue) || 0,
+        averageOrderValue: Number(statsData?.averageOrderValue) || 0,
+        totalProducts: Number(statsData?.totalProducts) || 0,
+        topProducts: Array.isArray(topProductsData) ? topProductsData : [],
+        recentSales: Array.isArray(recentSalesData) ? recentSalesData : [],
+        salesByDay: Array.isArray(salesByDayData) ? salesByDayData : []
+      })
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // Effetto per caricare i dati iniziali e quando cambia il range di date
+  useEffect(() => {
+    fetchData(dateRange.from, dateRange.to)
+  }, [dateRange])
+
+  const handleDateRangeChange = (range: DateRange | undefined) => {
+    if (range?.from) {
+      setDateRange({
+        from: range.from,
+        to: range.to || range.from
+      })
+    }
+  }
+
+  // Funzioni helper per la gestione sicura dei dati
+  const getSafeArray = (data: any[] | null | undefined) => {
+    return Array.isArray(data) ? data : []
+  }
+
+  const formatCurrency = (value: number | string | undefined) => {
+    if (value === undefined || value === null) return '0.00'
+    const numValue = typeof value === 'string' ? parseFloat(value) : value
+    if (isNaN(numValue)) return '0.00'
+    return numValue.toFixed(2)
+  }
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="@/componants/dh-logo.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="https://nextjs.org/icons/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+    <div className="flex-1 space-y-4 p-8 pt-6">
+      <div className="flex items-center justify-between space-y-2">
+        <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
+        <div className="flex items-center space-x-2">
+          <CalendarDateRangePicker 
+            date={dateRange}
+            onDateChange={handleDateRangeChange}
+          />
+          <Button>Download</Button>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+      </div>
+      <Tabs defaultValue="overview" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="analytics">Analytics</TabsTrigger>
+        </TabsList>
+        <TabsContent value="overview" className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">
+                  Vendite Totali
+                </CardTitle>
+                <ShoppingCart className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                {isLoading ? (
+                  <Skeleton className="h-8 w-[100px]" />
+                ) : (
+                  <>
+                    <div className="text-2xl font-bold">{salesData?.totalSales || 0}</div>
+                    <p className="text-xs text-muted-foreground">
+                      Numero totale di ordini
+                    </p>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">
+                  Incasso Totale
+                </CardTitle>
+                <DollarSign className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                {isLoading ? (
+                  <Skeleton className="h-8 w-[100px]" />
+                ) : (
+                  <>
+                    <div className="text-2xl font-bold">€{formatCurrency(salesData?.totalRevenue)}</div>
+                    <p className="text-xs text-muted-foreground">
+                      Fatturato totale
+                    </p>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">
+                  Valore Medio Ordine
+                </CardTitle>
+                <TrendingUp className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                {isLoading ? (
+                  <Skeleton className="h-8 w-[100px]" />
+                ) : (
+                  <>
+                    <div className="text-2xl font-bold">€{formatCurrency(salesData?.averageOrderValue)}</div>
+                    <p className="text-xs text-muted-foreground">
+                      Media per ordine
+                    </p>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Prodotti Venduti</CardTitle>
+                <Package className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                {isLoading ? (
+                  <Skeleton className="h-8 w-[100px]" />
+                ) : (
+                  <>
+                    <div className="text-2xl font-bold">{salesData?.totalProducts || 0}</div>
+                    <p className="text-xs text-muted-foreground">
+                      Totale prodotti venduti
+                    </p>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
+            <Card className="col-span-4">
+              <CardHeader>
+                <CardTitle>Andamento Vendite</CardTitle>
+              </CardHeader>
+              <CardContent className="pl-2">
+                {isLoading ? (
+                  <Skeleton className="h-[350px] w-full" />
+                ) : (
+                  <Overview 
+                    data={getSafeArray(salesData?.salesByDay).map(item => ({
+                      date: item.date,
+                      total: item.total_revenue || 0
+                    }))} 
+                  />
+                )}
+              </CardContent>
+            </Card>
+            <Card className="col-span-3">
+              <CardHeader>
+                <CardTitle>Vendite Recenti</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {isLoading ? (
+                  <div className="space-y-4">
+                    {[...Array(5)].map((_, i) => (
+                      <div key={i} className="flex items-center space-x-4">
+                        <Skeleton className="h-12 w-12 rounded-full" />
+                        <div className="space-y-2">
+                          <Skeleton className="h-4 w-[200px]" />
+                          <Skeleton className="h-4 w-[150px]" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <RecentSales 
+                    data={getSafeArray(salesData?.recentSales).map(sale => ({
+                      id: sale.id,
+                      code: sale.code,
+                      total: Number(sale.total) || 0,
+                      date: sale.date,
+                      client: {
+                        name: sale.client_name || 'Cliente Generico'
+                      }
+                    }))} 
+                  />
+                )}
+              </CardContent>
+            </Card>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
+            <Card className="col-span-4">
+              <CardContent className="pl-2">
+                {isLoading ? (
+                  <div className="space-y-4">
+                    <Skeleton className="h-[200px] w-[200px] mx-auto rounded-full" />
+                    <div className="space-y-2">
+                      {[...Array(5)].map((_, i) => (
+                        <Skeleton key={i} className="h-4 w-full" />
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <TopProducts 
+                    data={getSafeArray(salesData?.topProducts)} 
+                  />
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
-  );
+  )
 }

@@ -4,7 +4,9 @@ import localFont from "next/font/local";
 import "./globals.css";
 import { Sidebar } from "./components/sidebar";
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { Toaster } from "@/components/ui/toaster"
+import { usePathname } from 'next/navigation'
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -17,21 +19,36 @@ const geistMono = localFont({
   weight: "100 900",
 });
 
+// Pagine pubbliche che non richiedono la sidebar
+const publicPages = ['/login', '/reset-password']
+
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   const [queryClient] = useState(() => new QueryClient())
+  const pathname = usePathname()
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+
+  useEffect(() => {
+    // Controlla se esiste il token nei cookies
+    const token = document.cookie.includes('token=')
+    setIsAuthenticated(token)
+  }, [pathname])
+
+  const showSidebar = !publicPages.includes(pathname) && isAuthenticated
+
   return (
-    <html lang="en" className="color-scheme:light">
+    <html lang="en" data-color-scheme="light">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <QueryClientProvider client={queryClient}>
-          <Sidebar />
-          <main className="pl-16">
+          {showSidebar && <Sidebar />}
+          <main className={showSidebar ? "pl-16" : ""}>
             {children}
           </main>
         </QueryClientProvider>
+        <Toaster />
       </body>
     </html>
   );

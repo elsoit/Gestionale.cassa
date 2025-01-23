@@ -59,3 +59,30 @@
   }
 }
 
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+@layer utilities {
+  .animate-flash-green {
+    animation: flash-green 2s ease-out;
+  }
+}
+
+@keyframes flash-green {
+  0% {
+    background-color: rgb(34 197 94); /* green-500 */
+  }
+  25% {
+    background-color: rgb(34 197 94); /* green-500 */
+  }
+  100% {
+    background-color: rgb(240 253 244); /* green-50 */
+  }
+}
+

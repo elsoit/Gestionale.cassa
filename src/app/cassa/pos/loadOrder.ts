@@ -1,40 +1,18 @@
-import { CartItem } from '@/app/cassa/pos/types';
+import type {
+  CartItem,
+  Order,
+  LoadOrderDependencies
+} from './@types'
 
-interface Order {
-  id: number;
-  code: string;
-  total_price: string;
-  final_total: string;
-  status_id: number;
-  created_at: string;
-  client?: {
-    id: number;
-    name: string;
-  };
-  order_payments: OrderPayment[];
-}
-
-interface OrderPayment {
-  amount: number;
-}
-
-interface LoadOrderDependencies {
-  setCart: (cart: CartItem[]) => void;
-  setSelectedClient: (clientId: string) => void;
-  setCurrentOrderId: (id: number | null) => void;
-  setIsReservationsDialogOpen: (isOpen: boolean) => void;
-  fetchPreviousPayments: (orderId: number) => void;
-  setOrderNumber: (number: string) => void;
-  toast: any;
-}
+const server = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3003';
 
 export const loadOrderFromDB = async (order: Order, deps: LoadOrderDependencies) => {
   try {
     // 1. Recupera i dettagli dell'ordine con i prodotti
-    const response = await fetch(`http://localhost:3003/api/order-items/${order.id}`);
+    const response = await fetch(`${server}/api/order-items/${order.id}`);
     if (!response.ok) throw new Error('Failed to fetch order items');
     const orderItems = await response.json();
-
+    
     // 2. Converti gli items in formato CartItem
     const cartItems: CartItem[] = orderItems.map((item: any) => ({
       id: item.product_id,
@@ -47,9 +25,6 @@ export const loadOrderFromDB = async (order: Order, deps: LoadOrderDependencies)
       total: item.total,
       isFromReservation: true  // Flag per identificare che viene da una prenotazione
     }));
-
-    // 3. Calcola il totale degli acconti
-    const totalPaid = order.order_payments.reduce((sum, payment) => sum + payment.amount, 0);
 
     // 4. Imposta tutti i dati necessari
     deps.setCart(cartItems);

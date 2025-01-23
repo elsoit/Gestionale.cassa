@@ -1,15 +1,32 @@
 'use client'
 
-import React, { useState, useEffect, useRef, useMemo } from 'react'
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { useParams } from 'next/navigation'
 import { SelectWithNullOption } from '@/components/SelectWithNullOption'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from "@/components/ui/dialog"
-import { X, Plus, Minus, Search, ScanBarcode, Trash2 } from 'lucide-react'
+import { Plus, ScanBarcode, Trash2 } from 'lucide-react'
 import { useToast } from "@/hooks/use-toast"
-import { Card, CardContent, CardFooter } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
+import { cn } from "@/lib/utils"
+import { LoadProductsTable } from '@/components/LoadProductsTable'
+import { AddProductsModal } from "@/components/AddProductsModal"
+
+const server = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3003';
+
+// Aggiungi la funzione per recuperare le foto
+const fetchMainPhoto = async (article_code: string, variant_code: string) => {
+  try {
+    const response = await fetch(`${server}/api/products/photos/${article_code}/${variant_code}/main`);
+    if (!response.ok) return null;
+    const data = await response.json();
+    return data?.url || null;
+  } catch (error) {
+    console.error('Error fetching main photo:', error);
+    return null;
+  }
+};
 
 interface Load {
   id: number
@@ -34,42 +51,82 @@ interface Warehouse {
   name: string
 }
 
-interface Product {
+interface BaseProduct {
   id: number
   article_code: string
   variant_code: string
-  size_id: number
   wholesale_price: number
-  size: string
-  barcode?: string
+  retail_price: number
   availability?: {
+    product_id: number
     warehouse_id: number
     quantity: number
-    warehouse_name: string
   }[]
 }
 
-interface Size {
-  id: number
-  name: string
+type ModalProductAttributes = {
+  parameter_id: number
+  parameter_name: string
+  attribute_id: number
+  attribute_name: string
 }
 
-interface LoadProduct extends Omit<Product, 'size_id'> {
-  load_product_id?: number
+type ProductAttributes = ModalProductAttributes & {
+  parameter_description: string
+  parameter_is_required: boolean
+  parameter_is_expandable: boolean
+}
+
+interface ModalProduct extends Omit<BaseProduct, 'availability' | 'attributes'> {
+  size_id: number
+  size_name: string
+  brand_id: number
+  brand_name: string
+  size_group_id: number
+  size_group_name: string
+  status_id: number
+  status_name: string
+  created_at: string
+  updated_at: string
+  mainPhotoUrl?: string
+  availability?: {
+    warehouse_id: number
+    quantity: number
+  }[]
+  attributes: ModalProductAttributes[]
+}
+
+interface Product extends Omit<BaseProduct, 'attributes'> {
+  size_id: number
+  size_name: string
+  brand_id: number
+  brand_name: string
+  size_group_id: number
+  size_group_name: string
+  status_id: number
+  status_name: string
+  created_at: string
+  updated_at: string
+  mainPhotoUrl?: string
+  attributes: ProductAttributes[]
+}
+
+interface LoadProduct extends Omit<BaseProduct, 'attributes'> {
+  quantity: number
   cost: number
-  quantity: number
-  size: string
-}
-
-interface WarehouseData {
-  id: number
-  name: string
-}
-
-interface AvailabilityData {
-  warehouse_id: number
-  quantity: number
-  product_id: number
+  size?: { name: string }
+  size_name: string
+  load_product_id?: number
+  status_id: number
+  size_id: number
+  size_group_id: number
+  brand_id: number
+  brand_name: string
+  size_group_name: string
+  status_name: string
+  created_at: string
+  updated_at: string
+  attributes: ProductAttributes[]
 }
 
 interface LoadProductData {
@@ -77,10 +134,86 @@ interface LoadProductData {
   product_id: number;
 }
 
+interface GroupedProduct {
+  article_code: string
+  variant_code: string
+  mainPhotoUrl?: string
+  sizes: Product[]
+  isExpanded?: boolean
+}
+
+interface Parameter {
+  id: number
+  name: string
+  attributes: Array<{
+    id: number
+    name: string
+  }>
+}
+
+interface PriceRange {
+  min: number
+  max: number
+}
+
+interface PriceRanges {
+  wholesale_price: PriceRange
+  retail_price: PriceRange
+}
+
+interface AvailabilityItem {
+  warehouse_id: number;
+  quantity: number;
+  product_id: number;
+}
+
 export default function LoadDetailPage() {
   const params = useParams()
   const { toast } = useToast()
   const id = params.id as string
+
+  // Costanti per le chiavi del localStorage
+  const LOAD_CACHE_KEY = `load-cache-${id}`;
+  const ORIGINAL_DATA_KEY = `load-original-${id}`;
+
+  // Funzione per salvare lo stato nel localStorage
+  const saveToCache = (products: LoadProduct[]) => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(LOAD_CACHE_KEY, JSON.stringify(products));
+    }
+  };
+
+  // Funzione per salvare i dati originali nel localStorage
+  const saveOriginalData = (products: LoadProduct[]) => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(ORIGINAL_DATA_KEY, JSON.stringify(products));
+    }
+  };
+
+  // Funzione per caricare lo stato dal localStorage
+  const loadFromCache = (): LoadProduct[] | null => {
+    if (typeof window !== 'undefined') {
+      const cached = localStorage.getItem(LOAD_CACHE_KEY);
+      return cached ? JSON.parse(cached) : null;
+    }
+    return null;
+  };
+
+  // Funzione per caricare i dati originali dal localStorage
+  const loadOriginalData = (): LoadProduct[] | null => {
+    if (typeof window !== 'undefined') {
+      const original = localStorage.getItem(ORIGINAL_DATA_KEY);
+      return original ? JSON.parse(original) : null;
+    }
+    return null;
+  };
+
+  // Funzione per cancellare la cache
+  const clearCache = () => {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem(LOAD_CACHE_KEY);
+    }
+  };
 
   const [load, setLoad] = useState<Load | null>(null)
   const [supplies, setSupplies] = useState<Supply[]>([])
@@ -91,16 +224,45 @@ export default function LoadDetailPage() {
   const [isProductDialogOpen, setIsProductDialogOpen] = useState(false)
   const [isChanged, setIsChanged] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
+  const [modalSearchTerm, setModalSearchTerm] = useState('')
   const searchInputRef = useRef<HTMLInputElement>(null)
   const [removedProductIds, setRemovedProductIds] = useState<number[]>([])
   const [isConfirming, setIsConfirming] = useState(false)
   const [isRevoking, setIsRevoking] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
-
-  const [animatedRowIndex, setAnimatedRowIndex] = useState<number | null>(null)
-  const tableRef = useRef<HTMLTableSectionElement>(null)
-
   const [selectedAction, setSelectedAction] = useState<'confirm' | 'revoke' | 'delete' | null>(null)
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
+  const tableRef = useRef<HTMLTableSectionElement>(null)
+  const [flashingRows, setFlashingRows] = useState<Set<number>>(new Set())
+  const [flashingQuantities, setFlashingQuantities] = useState<Set<number>>(new Set())
+
+  const [photoLoadingStates, setPhotoLoadingStates] = useState<Record<string, boolean>>({});
+
+  const [costInputs, setCostInputs] = useState<Record<string, string>>({});
+
+  const getCostInputId = (product: LoadProduct) => `${product.id}-${product.size_name}`;
+
+  // Aggiungo uno state per tenere traccia dei dati originali dal DB
+  const [originalProducts, setOriginalProducts] = useState<LoadProduct[]>([]);
+
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+
+  // Stato per i filtri e i prodotti della modale
+  const [modalState, setModalState] = useState({
+    products: [] as Product[],
+    filteredProducts: [] as Product[],
+    selectedFilters: {} as Record<string, number[]>,
+    brands: [] as Array<{ id: number; name: string }>,
+    sizes: [] as Array<{ id: number; name: string }>,
+    parameters: [] as Parameter[],
+    isLoading: false,
+    priceRanges: {
+      wholesale_price: { min: 0, max: 1000 },
+      retail_price: { min: 0, max: 1000 }
+    } as PriceRanges,
+    availabilityFilter: {} as { type?: 'available' | 'not_available' | 'greater_than' | 'less_than', value?: number }
+  })
 
   useEffect(() => {
     if (id) {
@@ -111,7 +273,7 @@ export default function LoadDetailPage() {
       fetchLoadProducts()
       fetchAllProducts()
     }
-  }, [id])
+  }, [])
 
   useEffect(() => {
     if (searchInputRef.current) {
@@ -185,6 +347,21 @@ export default function LoadDetailPage() {
 
   const fetchLoadProducts = async () => {
     try {
+      // Controlla se ci sono dati originali salvati
+      const originalData = loadOriginalData();
+      
+      // Controlla se ci sono modifiche in cache
+      const cached = loadFromCache();
+
+      if (originalData && cached) {
+        // Se abbiamo sia i dati originali che le modifiche, usa le modifiche
+        setLoadProducts(cached);
+        setOriginalProducts(originalData);
+        setIsChanged(true);
+        return;
+      }
+
+      // Se non ci sono dati salvati, carica dal server
       const response = await fetch(`http://localhost:3003/api/load-products/load/${id}`)
       if (!response.ok) throw new Error('Failed to fetch load products')
       const data = await response.json()
@@ -202,11 +379,17 @@ export default function LoadDetailPage() {
           ...loadProduct,
           ...productData,
           load_product_id: loadProduct.id,
-          size: sizeData.name
+          size: sizeData.size_name
         }
       }))
       
       setLoadProducts(productsWithDetails)
+      setOriginalProducts(productsWithDetails)
+      
+      // Salva i dati originali nel localStorage
+      saveOriginalData(productsWithDetails);
+      
+      setIsChanged(false)
     } catch (error) {
       console.error('Error fetching load products:', error)
       toast({
@@ -219,64 +402,29 @@ export default function LoadDetailPage() {
 
   const fetchAllProducts = async () => {
     try {
-      const response = await fetch('http://localhost:3003/api/products/')
-      if (!response.ok) throw new Error('Failed to fetch all products')
+      const response = await fetch(`${server}/api/products/`)
+      if (!response.ok) throw new Error('Failed to fetch products')
       const data = await response.json()
       
-      const products = data.products || []
-      
-      const productsWithDetails = await Promise.all(products.map(async (product: Product) => {
-        try {
-          const sizeResponse = await fetch(`http://localhost:3003/api/sizes/${product.size_id}`)
-          if (!sizeResponse.ok) throw new Error(`Failed to fetch size name for size ${product.size_id}`)
-          const sizeData = await sizeResponse.json()
-          
-          const availabilityResponse = await fetch(`http://localhost:3003/api/product-availability/product/${product.id}`)
-          if (!availabilityResponse.ok) throw new Error(`Failed to fetch availability for product ${product.id}`)
-          const availabilityData = await availabilityResponse.json()
-
-          // Fetch warehouse names for each availability entry
-          const availabilityWithNames = await Promise.all(availabilityData.map(async (av: AvailabilityData) => {
-            const warehouseResponse = await fetch(`http://localhost:3003/api/warehouses/${av.warehouse_id}`)
-            if (!warehouseResponse.ok) throw new Error(`Failed to fetch warehouse name for warehouse ${av.warehouse_id}`)
-            const warehouseData: WarehouseData = await warehouseResponse.json()
-            return {
-              warehouse_id: av.warehouse_id,
-              quantity: av.quantity,
-              warehouse_name: warehouseData.name
-            }
-          }))
-          
-          return {
-            id: product.id,
-            article_code: product.article_code,
-            variant_code: product.variant_code,
-            size_id: product.size_id,
-            wholesale_price: product.wholesale_price,
-            size: sizeData.name,
-            barcode: product.barcode,
-            availability: availabilityWithNames
-          }
-        } catch (error) {
-          console.error(`Error fetching details for product ${product.id}:`, error)
-          return {
-            ...product,
-            size: 'N/A',
-            availability: []
-          }
-        }
+      const productsWithDetails = data.products.map((product: Product) => ({
+        ...product,
+        size: product.size_name || 'N/A'
       }))
-      
+
       setAllProducts(productsWithDetails)
     } catch (error) {
-      console.error('Error fetching all products:', error)
+      console.error('Error fetching products:', error)
       toast({
-        title: "Error",
-        description: "Failed to fetch all products. Please try again.",
+        title: "Errore",
+        description: "Si è verificato un errore durante il caricamento dei prodotti",
         variant: "destructive",
       })
     }
   }
+
+  useEffect(() => {
+    fetchAllProducts()
+  }, [])
 
   const handleLoadChange = (field: keyof Load, value: string | number | null) => {
     if (load) {
@@ -285,82 +433,257 @@ export default function LoadDetailPage() {
     }
   }
 
-  const handleProductChange = (index: number, field: keyof LoadProduct, value: string | number) => {
-    const updatedProducts = [...loadProducts]
-    updatedProducts[index] = { ...updatedProducts[index], [field]: value }
-    setLoadProducts(updatedProducts)
-    setIsChanged(true)
-  }
+  const findParentProduct = (product: LoadProduct) => {
+    return loadProducts.find(p => 
+      p.article_code === product.article_code && 
+      p.variant_code === product.variant_code && 
+      p.id !== product.id
+    );
+  };
 
-  const handleAnimate = (index: number) => {
-    setAnimatedRowIndex(index)
-    setTimeout(() => setAnimatedRowIndex(null), 820)
-  
-    if (tableRef.current) {
-      const rowElement = tableRef.current.children[index] as HTMLTableRowElement
-      if (rowElement) {
-        rowElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  const scrollToRow = (rowId: string) => {
+    setTimeout(() => {
+      const row = document.querySelector(`[data-row-id="${rowId}"]`);
+      if (row) {
+        row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }, 100);
+  };
+
+  // Modifica handleProductChange per salvare in cache
+  const handleProductChange = (product: LoadProduct, field: keyof LoadProduct, value: string | number) => {
+    const index = loadProducts.findIndex(p => p.id === product.id);
+    if (index === -1) return;
+    
+    const newProducts = [...loadProducts];
+    newProducts[index] = { ...newProducts[index], [field]: value };
+    setLoadProducts(newProducts);
+    setIsChanged(true);
+    saveToCache(newProducts);
+  };
+
+  // Funzione per rimuovere un prodotto e tutte le sue varianti
+  const removeProductAndVariants = (product: LoadProduct) => {
+    // Trova tutte le varianti dello stesso articolo
+    const productsToRemove = loadProducts.filter(
+      p => p.article_code === product.article_code && p.variant_code === product.variant_code
+    );
+
+    // Aggiungi gli ID alla lista dei prodotti da eliminare dal database
+    productsToRemove.forEach(p => {
+      if (p.load_product_id) {
+        setRemovedProductIds(prev => [...prev, p.load_product_id!]);
+      }
+    });
+
+    // Rimuovi i prodotti dall'array loadProducts mantenendo l'ordine
+    const updatedProducts = loadProducts.filter(p => 
+      !productsToRemove.some(rp => rp.id === p.id)
+    );
+
+    return { updatedProducts, productsToRemove };
+  };
+
+  // Funzione per rimuovere una singola variante
+  const removeSingleVariant = (product: LoadProduct) => {
+    const productsToRemove = loadProducts.filter(p => p.id === product.id)
+    
+    // Controlla se questa è l'ultima variante
+    const remainingVariants = loadProducts.filter(
+      p => p.article_code === product.article_code && 
+          p.variant_code === product.variant_code && 
+          p.id !== product.id
+    );
+
+    // Se è l'ultima variante, rimuovi anche il prodotto principale
+    if (remainingVariants.length === 0) {
+      const mainProduct = loadProducts.find(
+        p => p.article_code === product.article_code && 
+            p.variant_code === product.variant_code &&
+            p.id !== product.id
+      );
+      if (mainProduct) {
+        productsToRemove.push(mainProduct);
       }
     }
-  }
 
-  const handleAddProduct = (product: Product & { size: string }) => {
-    const isLoadConfirmed = load?.status_id === 10
-    if (isLoadConfirmed) return
-
-    const existingProductIndex = loadProducts.findIndex(
-      (p) => p.id === product.id && p.size === product.size
-    )
-  
-    if (existingProductIndex !== -1) {
-      const updatedProducts = [...loadProducts]
-      updatedProducts[existingProductIndex].quantity += 1
-      setLoadProducts(updatedProducts)
-      handleAnimate(existingProductIndex)
-    } else {
-      const newLoadProduct: LoadProduct = {
-        ...product,
-        cost: product.wholesale_price || 0,
-        quantity: 1
+    // Aggiungi gli ID alla lista dei prodotti da eliminare dal database
+    productsToRemove.forEach(p => {
+      if (p.load_product_id) {
+        setRemovedProductIds(prev => [...prev, p.load_product_id!]);
       }
-      setLoadProducts([newLoadProduct, ...loadProducts])
-      handleAnimate(0)
+    });
+
+    // Rimuovi i prodotti dall'array loadProducts mantenendo l'ordine
+    const updatedProducts = loadProducts.filter(p => 
+      !productsToRemove.some(rp => rp.id === p.id)
+    );
+
+    return { updatedProducts, productsToRemove };
+  };
+
+  // Funzione principale per gestire la rimozione dei prodotti
+  const handleRemoveProduct = (product: LoadProduct, isMainRow: boolean = false) => {
+    if (isLoadDisabled) {
+      toast({
+        title: "Operazione non permessa",
+        description: "Non puoi modificare un carico confermato o cancellato",
+        variant: "destructive",
+      });
+      return;
     }
-    setIsProductDialogOpen(false)
-    setIsChanged(true)
-  }
 
-  const handleQuantityChange = (index: number, change: number) => {
-    const updatedProducts = [...loadProducts]
-    updatedProducts[index].quantity = Math.max(1, updatedProducts[index].quantity + change)
-    setLoadProducts(updatedProducts)
-    setIsChanged(true)
-  }
+    const { updatedProducts, productsToRemove } = isMainRow 
+      ? removeProductAndVariants(product)
+      : removeSingleVariant(product);
 
-  const handleRemoveProduct = (index: number) => {
-    const isLoadConfirmed = load?.status_id === 10
-    if (isLoadConfirmed) return
+    setLoadProducts(updatedProducts);
+    saveToCache(updatedProducts);
 
-    const productToRemove = loadProducts[index]
-    if (productToRemove.load_product_id) {
-      setRemovedProductIds(prev => [...prev, productToRemove.load_product_id!])
+    const updatedOriginals = originalProducts.filter(p => 
+      !productsToRemove.some(rp => rp.id === p.id)
+    );
+    setOriginalProducts(updatedOriginals);
+    saveOriginalData(updatedOriginals);
+
+    setIsChanged(true);
+  };
+
+  // Gestione della quantità che arriva a 0
+  const handleQuantityChange = (index: number, delta: number) => {
+    if (isLoadDisabled) return;
+    
+    const newProducts = [...loadProducts];
+    const product = newProducts[index];
+    const newQuantity = Math.max(0, (product.quantity || 0) + delta);
+    
+    // Se la quantità arriva a 0, rimuovi solo questa variante
+    if (newQuantity === 0) {
+      // Rimuovi solo questa variante
+      handleRemoveProduct(product, false);
+      return;
     }
-    const updatedProducts = loadProducts.filter((_, i) => i !== index)
-    setLoadProducts(updatedProducts)
-    setIsChanged(true)
-  }
 
+    // Altrimenti aggiorna la quantità
+    newProducts[index] = { ...product, quantity: newQuantity };
+    setLoadProducts(newProducts);
+    setIsChanged(true);
+    saveToCache(newProducts);
+  };
+
+  // Modifica handleAddProduct per gestire diversamente l'aggiunta di una singola taglia
+  const handleAddProduct = (products: Product[]) => {
+    if (isLoadDisabled) {
+      toast({
+        title: "Operazione non permessa",
+        description: "Non puoi modificare un carico confermato o cancellato",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setIsProductDialogOpen(false);
+    
+    // Se è una singola taglia, la gestiamo diversamente
+    if (products.length === 1) {
+      const product = products[0];
+      const existingProduct = loadProducts.find(
+        p => p.id === product.id && p.size_name === product.size_name
+      );
+
+      if (existingProduct) {
+        // Se il prodotto esiste già, fallo lampeggiare
+        handleFlashRow(existingProduct.id);
+        scrollToRow(`variant-${existingProduct.id}`);
+        return;
+      }
+
+      // Aggiungi la singola taglia come prodotto indipendente
+      const newLoadProduct = convertToLoadProduct(product);
+      setLoadProducts(prevProducts => {
+        const newState = [newLoadProduct, ...prevProducts];
+        handleFlashRow(newLoadProduct.id);
+        scrollToRow(`variant-${newLoadProduct.id}`);
+        saveToCache(newState);
+        return newState;
+      });
+      setIsChanged(true);
+      return;
+    }
+
+    // Gestione per selezione multipla di taglie
+    const existingProducts = loadProducts.filter(
+      p => p.article_code === products[0].article_code && p.variant_code === products[0].variant_code
+    );
+
+    if (existingProducts.length === products.length && 
+        products.every(p => existingProducts.some(ep => ep.size_name === p.size_name))) {
+      existingProducts.forEach(product => {
+        handleFlashRow(product.id);
+        scrollToRow(`variant-${product.id}`);
+        const parentProduct = findParentProduct(product);
+        if (parentProduct) {
+          scrollToRow(`main-${parentProduct.id}`);
+        }
+      });
+      return;
+    }
+
+    const newProducts = products.filter(p => 
+      !existingProducts.some(ep => ep.size_name === p.size_name)
+    );
+
+    if (newProducts.length > 0) {
+      const productsToAdd = newProducts.map(convertToLoadProduct);
+      setLoadProducts(prevProducts => {
+        const newState = [...productsToAdd, ...prevProducts];
+        productsToAdd.forEach(p => {
+          handleFlashRow(p.id);
+          scrollToRow(`variant-${p.id}`);
+        });
+        if (productsToAdd.length > 0) {
+          scrollToRow(`main-${productsToAdd[0].id}`);
+        }
+        saveToCache(newState);
+        return newState;
+      });
+      setIsChanged(true);
+    }
+  };
+
+  // Funzione per far lampeggiare una riga
+  const handleFlashRow = (productId: number) => {
+    setFlashingRows(prev => {
+      const newSet = new Set<number>();
+      prev.forEach(id => newSet.add(id));
+      newSet.add(productId);
+      return newSet;
+    });
+    setTimeout(() => {
+      setFlashingRows(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(productId);
+        return newSet;
+      });
+    }, 2000);
+  };
+
+  // Modifica handleSave per gestire correttamente l'eliminazione
   const handleSave = async () => {
     try {
       if (!load) throw new Error('No load data to save')
 
-      const loadResponse = await fetch(`http://localhost:3003/api/loads/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(load)
-      })
-      if (!loadResponse.ok) throw new Error('Failed to update load details')
+      // Prima salviamo i prodotti rimossi
+      for (const removedId of removedProductIds) {
+        const deleteResponse = await fetch(`${server}/api/load-products/${removedId}`, {
+          method: 'DELETE'
+        })
+        if (!deleteResponse.ok) {
+          throw new Error(`Failed to delete product with ID ${removedId}`)
+        }
+      }
 
+      // Aggiorniamo/creiamo i prodotti rimanenti
       for (const product of loadProducts) {
         const productData = {
           load_id: parseInt(id),
@@ -371,17 +694,22 @@ export default function LoadDetailPage() {
 
         let response;
         if (product.load_product_id) {
-          response = await fetch(`http://localhost:3003/api/load-products/${product.load_product_id}`, {
+          response = await fetch(`${server}/api/load-products/${product.load_product_id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(productData)
           })
         } else {
-          response = await fetch(`http://localhost:3003/api/load-products`, {
+          response = await fetch(`${server}/api/load-products`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(productData)
           })
+
+          if (response.ok) {
+            const newProduct = await response.json();
+            product.load_product_id = newProduct.id;
+          }
         }
 
         if (!response.ok) {
@@ -390,73 +718,217 @@ export default function LoadDetailPage() {
         }
       }
 
-      // Delete removed products
-      for (const removedId of removedProductIds) {
-        const deleteResponse = await fetch(`http://localhost:3003/api/load-products/${removedId}`, {
-          method: 'DELETE'
-        })
-        if (!deleteResponse.ok) {
-          throw new Error(`Failed to delete product with ID ${removedId}`)
-        }
-      }
-
+      // Aggiorniamo lo stato locale
       setIsChanged(false)
       setRemovedProductIds([])
+      
+      // Rimuoviamo la cache
+      clearCache()
+      localStorage.removeItem(ORIGINAL_DATA_KEY)
+
+      // Usiamo i prodotti attuali come nuovi dati originali
+      setOriginalProducts([...loadProducts])
+
       toast({
-        title: "Success",
-        description: "Changes saved successfully",
+        title: "Successo",
+        description: "Modifiche salvate con successo",
       })
 
-      fetchLoadProducts()
+      // Aggiorniamo i dettagli del carico
+      await fetchLoadDetails()
     } catch (error) {
       console.error('Error saving changes:', error)
       toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to save changes. Please try again.",
+        title: "Errore",
+        description: error instanceof Error ? error.message : "Errore durante il salvataggio delle modifiche",
         variant: "destructive",
       })
     }
   }
 
+  const handleConfirmLoad = async () => {
+    if (!load || isConfirming) return
+
+    try {
+      // Prima salviamo le modifiche
+      await handleSave()
+
+      setIsConfirming(true)
+      const response = await fetch(`${server}/api/loads/${id}/confirm`, {
+        method: 'PUT',
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to confirm load')
+      }
+
+      toast({
+        title: "Successo",
+        description: "Carico confermato con successo",
+      })
+
+      // Aggiorniamo i dettagli del carico per ottenere il nuovo stato
+      await fetchLoadDetails()
+      
+      // Rimuoviamo la cache e i dati originali
+      clearCache()
+      localStorage.removeItem(ORIGINAL_DATA_KEY)
+    } catch (error) {
+      console.error(error)
+      toast({
+        title: "Errore",
+        description: error instanceof Error ? error.message : "Errore durante la conferma del carico",
+        variant: "destructive",
+      })
+    } finally {
+      setIsConfirming(false)
+    }
+  }
+
+  const toggleExpansion = (groupKey: string, e?: React.MouseEvent) => {
+    if (e) {
+      e.stopPropagation();
+    }
+    setExpandedRows(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(groupKey)) {
+        newSet.delete(groupKey)
+      } else {
+        newSet.add(groupKey)
+      }
+      return newSet
+    })
+  }
+
+  const groupProducts = (products: Product[]): GroupedProduct[] => {
+    console.log('Grouping products:', products.length);
+    
+    const groupedMap = new Map<string, GroupedProduct>();
+    
+    products.forEach(product => {
+      const key = `${product.article_code}-${product.variant_code}`;
+      console.log('Processing product:', {
+        key,
+        article: product.article_code,
+        variant: product.variant_code,
+        size: product.size_name
+      });
+      
+      if (!groupedMap.has(key)) {
+        groupedMap.set(key, {
+          article_code: product.article_code,
+          variant_code: product.variant_code,
+          mainPhotoUrl: product.mainPhotoUrl,
+          sizes: []
+        });
+      }
+      
+      const group = groupedMap.get(key);
+      if (group) {
+        group.sizes.push(product);
+      }
+    });
+    
+    const result = Array.from(groupedMap.values());
+    console.log('Grouped results:', result.length);
+    return result;
+  };
+
   const handleSearch = async (term: string) => {
-    setSearchTerm(term)
+    console.log('🔍 Ricerca barcode iniziata:', term);
+    setSearchTerm(term);
     if (term.trim() === '') return;
 
     try {
-      const response = await fetch(`http://localhost:3003/api/barcode/barcodes/${term}/product`, {
+      console.log('📡 Chiamata API:', `${server}/api/barcode/barcodes/${term}/product`);
+      const response = await fetch(`${server}/api/barcode/barcodes/${term}/product`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
         },
       });
 
+      console.log('✨ Status risposta:', response.status);
+
       if (response.ok) {
         const product = await response.json();
-        const sizeResponse = await fetch(`http://localhost:3003/api/sizes/${product.size_id}`)
-          if (!sizeResponse.ok) throw new Error(`Failed to fetch size name for size ${product.size_id}`)
-          const sizeData = await sizeResponse.json()
-          
-          const productWithSize = { ...product, size: sizeData.name }
-          handleAddProduct(productWithSize)
+        console.log('✅ Prodotto trovato:', {
+          id: product.id,
+          article_code: product.article_code,
+          variant_code: product.variant_code,
+          size: product.size_name,
+          barcode: term
+        });
+
+        const existingProductIndex = loadProducts.findIndex(
+          p => p.id === product.id && p.size_name === product.size_name
+        );
+
+        let updatedProducts = [...loadProducts];
+
+        if (existingProductIndex !== -1) {
+          updatedProducts[existingProductIndex].quantity += 1;
+          setLoadProducts(updatedProducts);
+          handleFlashRow(product.id);
+          scrollToRow(`variant-${product.id}`);
+          const parentProduct = findParentProduct(updatedProducts[existingProductIndex]);
+          if (parentProduct) {
+            scrollToRow(`main-${parentProduct.id}`);
+          }
+        } else {
+          const newLoadProduct: LoadProduct = {
+            ...product,
+            cost: product.wholesale_price || 0,
+            quantity: 1,
+            size_name: product.size_name
+          };
+
+          const lastVariantIndex = loadProducts.findLastIndex(
+            p => p.article_code === product.article_code && p.variant_code === product.variant_code
+          );
+
+          if (lastVariantIndex !== -1) {
+            updatedProducts.splice(lastVariantIndex + 1, 0, newLoadProduct);
+            setLoadProducts(updatedProducts);
+            handleFlashRow(newLoadProduct.id);
+            scrollToRow(`variant-${newLoadProduct.id}`);
+            const existingProduct = updatedProducts[lastVariantIndex];
+            scrollToRow(`main-${existingProduct.id}`);
+          } else {
+            updatedProducts = [newLoadProduct, ...loadProducts];
+            setLoadProducts(updatedProducts);
+            handleFlashRow(newLoadProduct.id);
+            scrollToRow(`variant-${newLoadProduct.id}`);
+            scrollToRow(`main-${newLoadProduct.id}`);
+          }
+        }
+
+        // Salva nel localStorage
+        saveToCache(updatedProducts);
+        setIsChanged(true);
+        
         setSearchTerm('');
       } else if (response.status === 404) {
+        console.log('❌ Prodotto non trovato per il barcode:', term);
         toast({
-          title: "Product not found",
-          description: "No product found for this barcode.",
+          title: "Prodotto non trovato",
+          description: "Nessun prodotto trovato per questo codice a barre.",
           variant: "destructive",
         });
       } else {
+        console.log('⚠️ Errore risposta API:', response.status);
         throw new Error('Failed to fetch product');
       }
     } catch (error) {
-      console.error('Error searching product:', error);
+      console.error('🚨 Errore durante la ricerca:', error);
       toast({
-        title: "Error",
-        description: "Failed to search for the product. Please try again.",
+        title: "Errore",
+        description: "Errore durante la ricerca del prodotto. Riprova.",
         variant: "destructive",
       });
     }
-  }
+  };
 
   const handleConfirmAction = async () => {
     if (!selectedAction) return
@@ -508,38 +980,51 @@ export default function LoadDetailPage() {
     }
   }
 
+  const handleDeleteClick = () => {
+    setIsDeleteDialogOpen(true);
+  };
+
   const handleDeleteLoad = async () => {
-    if (!load || isDeleting) return
+    if (!load || isDeleting) return;
 
     try {
-      setIsDeleting(true)
-      const response = await fetch(`http://localhost:3003/api/loads/${id}/delete`, {
+      setIsDeleting(true);
+      const response = await fetch(`${server}/api/loads/${id}/delete`, {
         method: 'POST',
-      })
+      });
 
       if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error || 'Failed to delete load')
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to delete load');
       }
+
+      // Pulizia del localStorage e dello stato
+      clearCache();
+      localStorage.removeItem(ORIGINAL_DATA_KEY);
+      setLoadProducts([]);
+      setOriginalProducts([]);
+      setIsChanged(false);
+      setRemovedProductIds([]);
 
       toast({
         title: "Successo",
         description: "Carico cancellato con successo",
-      })
+      });
 
-      // Refresh load details to get updated status
-      await fetchLoadDetails()
+      // Aggiorniamo i dettagli del carico
+      await fetchLoadDetails();
     } catch (error) {
-      console.error(error)
+      console.error(error);
       toast({
         title: "Errore",
         description: error instanceof Error ? error.message : "Errore durante la cancellazione del carico",
         variant: "destructive",
-      })
+      });
     } finally {
-      setIsDeleting(false)
+      setIsDeleting(false);
+      setIsDeleteDialogOpen(false);
     }
-  }
+  };
 
   useEffect(() => {
     window.scrollTo(0, 0)
@@ -564,28 +1049,383 @@ export default function LoadDetailPage() {
     const totalCost = loadProducts.reduce((sum, product) => sum + product.cost * product.quantity, 0)
     const totalItems = loadProducts.reduce((sum, product) => sum + product.quantity, 0)
     const uniqueModels = new Set(loadProducts.map(product => product.article_code)).size
-    return { totalCost, totalItems, uniqueModels }
+    const uniqueCombinations = new Set(loadProducts.map(product => `${product.article_code}-${product.variant_code}`)).size
+    return { totalCost, totalItems, uniqueModels, uniqueCombinations }
   }, [loadProducts])
 
   // Controlla se il carico è confermato o cancellato
-  const isLoadConfirmed = load?.status_id === 10
-  const isLoadCancelled = load?.status_id === 12
-  const isLoadDisabled = isLoadConfirmed || isLoadCancelled
+  const isLoadConfirmed = load?.status_id === 10;
+  const isLoadCancelled = load?.status_id === 12;
+  const isLoadRevoked = load?.status_id === 11;
+  const isLoadDisabled = isLoadConfirmed || isLoadCancelled;
+
+  // Funzione per caricare i dati della modale
+  const loadModalData = async () => {
+    setModalState(prev => ({ ...prev, isLoading: true }))
+    try {
+      if (!load) return;
+
+      const [
+        productsResponse,
+        brandsData,
+        sizesData,
+        availabilityData
+      ] = await Promise.all([
+        fetch(`${server}/api/products?${new URLSearchParams({
+          search: modalSearchTerm,
+          filters: JSON.stringify(modalState.selectedFilters)
+        }).toString()}`).then(res => res.json()),
+        fetch(`${server}/api/brands`).then(res => res.json()),
+        fetch(`${server}/api/sizes`).then(res => res.json()),
+        fetch(`${server}/api/product-availability/warehouse/${load.warehouse_id}`).then(res => res.json())
+      ]);
+
+      // Mappa delle disponibilità per prodotto
+      const availabilityMap = (availabilityData as AvailabilityItem[]).reduce((acc: {[key: number]: number}, item: AvailabilityItem) => {
+        acc[item.product_id] = (acc[item.product_id] || 0) + item.quantity;
+        return acc;
+      }, {});
+
+      // Assicurati che i prodotti abbiano tutti i campi necessari
+      const productData = Array.isArray(productsResponse.products) ? productsResponse.products : [];
+      const productsWithDetails = await Promise.all(productData.map(async (product: Product) => {
+        const mainPhoto = await fetchMainPhoto(product.article_code, product.variant_code);
+        return {
+          ...product,
+          availability: availabilityData.filter((a: AvailabilityItem) => a.product_id === product.id),
+          main_photo: mainPhoto
+        };
+      }));
+
+      // Converti i parametri nel formato corretto
+      const validParameters: Parameter[] = [
+        {
+          id: -1,
+          name: "Brand",
+          attributes: brandsData.map((brand: any) => ({
+            id: brand.id,
+            name: brand.name
+          }))
+        },
+        {
+          id: -2,
+          name: "Taglie",
+          attributes: sizesData.map((size: any) => ({
+            id: size.id,
+            name: size.name
+          }))
+        },
+        ...(productsResponse.parameters || []).map((param: any) => ({
+          id: param.id,
+          name: param.name,
+          attributes: (param.attributes || []).map((attr: any) => ({
+            id: attr.id,
+            name: attr.name
+          }))
+        }))
+      ];
+
+      setModalState(prev => ({
+        ...prev,
+        brands: brandsData,
+        sizes: sizesData,
+        parameters: validParameters,
+        products: productsWithDetails,
+        filteredProducts: productsWithDetails,
+        isLoading: false
+      }));
+
+    } catch (error) {
+      console.error('Error loading modal data:', error)
+      toast({
+        title: "Errore",
+        description: "Errore durante il caricamento dei dati",
+        variant: "destructive",
+      })
+      setModalState(prev => ({ ...prev, isLoading: false }))
+    }
+  }
+
+  // Carica i dati quando si apre la modale
+  useEffect(() => {
+    if (isProductDialogOpen) {
+      loadModalData()
+    }
+  }, [isProductDialogOpen, loadModalData])
+
+  // Funzione per applicare i filtri
+  const applyFilters = useCallback((
+    filters: Record<string, number[]>,
+    searchValue: string = ''
+  ) => {
+    if (!modalState.products) return;
+
+    console.log('Applying filters:', { filters, searchValue });
+
+    const filtered = modalState.products.filter(product => {
+      // Filtro disponibilità
+      if (filters.availability?.length > 0) {
+        const totalAvailability = (product.availability || []).reduce((sum, a) => sum + (a.quantity || 0), 0);
+        if (totalAvailability <= 0) return false;
+      }
+
+      // Filtro brand (-1)
+      if (filters['-1']?.length > 0) {
+        if (!filters['-1'].includes(product.brand_id)) return false;
+      }
+
+      // Filtro taglia (-2)
+      if (filters['-2']?.length > 0) {
+        if (!filters['-2'].includes(product.size_id)) return false;
+      }
+
+      // Filtri parametri dinamici
+      for (const [paramId, selectedAttrs] of Object.entries(filters)) {
+        if (['-1', '-2', 'availability'].includes(paramId)) continue;
+        if (selectedAttrs.length === 0) continue;
+
+        const hasMatchingAttribute = product.attributes?.some(attr => 
+          attr.parameter_id === parseInt(paramId) && 
+          selectedAttrs.includes(attr.attribute_id)
+        );
+
+        if (!hasMatchingAttribute) return false;
+      }
+
+      // Filtro ricerca
+      if (searchValue) {
+        const searchLower = searchValue.toLowerCase();
+        const matches = 
+          product.article_code?.toLowerCase().includes(searchLower) ||
+          product.variant_code?.toLowerCase().includes(searchLower) ||
+          product.brand_name?.toLowerCase().includes(searchLower);
+        
+        if (!matches) return false;
+      }
+
+      return true;
+    });
+
+    setModalState(prev => ({
+      ...prev,
+      filteredProducts: filtered,
+      selectedFilters: filters
+    }));
+  }, [modalState.products]);
+
+  // Handler per il cambio dei filtri
+  const handleFilterChange = useCallback((newFilters: Record<string, number[]>) => {
+    console.log('Filter change:', newFilters);
+    // Manteniamo il filtro di disponibilità quando cambiamo altri filtri
+    const updatedFilters = {
+      ...newFilters,
+      availability: modalState.selectedFilters.availability || []
+    };
+    applyFilters(updatedFilters, searchTerm);
+  }, [applyFilters, searchTerm, modalState.selectedFilters.availability]);
+
+  // Handler per il cambio del filtro disponibilità
+  const handleAvailabilityChange = useCallback((checked: boolean) => {
+    const newFilters = {
+      ...modalState.selectedFilters,
+      availability: checked ? [1] : []
+    };
+    applyFilters(newFilters, searchTerm);
+  }, [applyFilters, searchTerm, modalState.selectedFilters]);
+
+  // Handler per il cambio della ricerca nella modale
+  const handleModalSearch = useCallback((value: string) => {
+    setModalSearchTerm(value);
+    applyFilters(modalState.selectedFilters, value);
+  }, [applyFilters, modalState.selectedFilters]);
+
+  const handlePhotoLoad = (productKey: string) => {
+    setPhotoLoadingStates(prev => ({
+      ...prev,
+      [productKey]: false
+    }));
+  };
+
+  const handlePhotoError = (productKey: string) => {
+    setPhotoLoadingStates(prev => ({
+      ...prev,
+      [productKey]: false
+    }));
+  };
+
+  const handleCostChange = (product: LoadProduct, value: string) => {
+    // Permette solo numeri, virgola e backspace
+    if (!/^[\d,]*$/.test(value)) return;
+    
+    setCostInputs(prev => ({
+      ...prev,
+      [getCostInputId(product)]: value
+    }));
+  };
+
+  const formatCost = (cost: number | string) => {
+    const numericCost = typeof cost === 'string' ? parseFloat(cost) : cost;
+    return isNaN(numericCost) ? '0,00' : numericCost.toFixed(2).replace('.', ',');
+  };
+
+  const handleCostBlur = (index: number, product: LoadProduct, value: string) => {
+    // Converte la virgola in punto e valida il numero
+    const numericValue = parseFloat(value.replace(',', '.'));
+    
+    // Se non è un numero valido, ripristina il valore precedente
+    if (isNaN(numericValue)) {
+      setCostInputs(prev => ({
+        ...prev,
+        [getCostInputId(product)]: formatCost(product.cost)
+      }));
+      return;
+    }
+
+    // Aggiorna il prodotto con il nuovo costo
+    handleProductChange(product, 'cost', numericValue);
+    
+    // Aggiorna l'input con il valore formattato a 2 decimali
+    setCostInputs(prev => ({
+      ...prev,
+      [getCostInputId(product)]: formatCost(numericValue)
+    }));
+  };
+
+  const sortSizes = (sizes: string[]) => {
+    const sizeOrder = ['XXS', 'XS', 'S', 'M', 'L', 'XL', 'XXL', '2XL', '3XL', '4XL', '5XL'];
+    const numericSizes = ['35', '36', '37', '38', '39', '40', '41', '42', '43', '44', '45', '46', '47', '48'];
+    
+    return sizes.sort((a, b) => {
+      const aUpper = a.toUpperCase();
+      const bUpper = b.toUpperCase();
+      
+      // Se entrambe sono taglie numeriche
+      if (!isNaN(Number(a)) && !isNaN(Number(b))) {
+        return Number(a) - Number(b);
+      }
+      
+      // Se entrambe sono taglie standard
+      const aIndex = sizeOrder.indexOf(aUpper);
+      const bIndex = sizeOrder.indexOf(bUpper);
+      if (aIndex !== -1 && bIndex !== -1) {
+        return aIndex - bIndex;
+      }
+      
+      // Se una è numerica e l'altra no
+      if (!isNaN(Number(a))) return -1;
+      if (!isNaN(Number(b))) return 1;
+      
+      // Ordine alfabetico per default
+      return aUpper.localeCompare(bUpper);
+    });
+  };
+
+  const toggleAllRows = () => {
+    if (expandedRows.size > 0) {
+      setExpandedRows(new Set());
+    } else {
+      const allKeys = loadProducts
+        .filter(p => loadProducts.filter(lp => 
+          lp.article_code === p.article_code && 
+          lp.variant_code === p.variant_code
+        ).length > 1)
+        .map(p => `${p.article_code}-${p.variant_code}`);
+      setExpandedRows(new Set(allKeys));
+    }
+  };
+
+  const handleCancel = () => {
+    const cached = loadFromCache();
+    if (cached) {
+      setIsDialogOpen(true);
+    }
+  };
+
+  const handleConfirmCancel = () => {
+    clearCache();
+    fetchLoadProducts();
+    setIsChanged(false);
+    setIsDialogOpen(false);
+  };
+
+  // Carica i dati dalla cache all'avvio
+  useEffect(() => {
+    const cached = loadFromCache();
+    if (cached) {
+      setLoadProducts(cached);
+      setIsChanged(true);
+    }
+  }, [])
+
+  // Funzioni di utilità per la gestione delle quantità
+  const getQuantityStyle = (product: LoadProduct, variants?: LoadProduct[]): string => {
+    // Se abbiamo variants, è una riga madre
+    if (variants) {
+      const totalQuantity = variants.reduce((sum, v) => sum + (v.quantity || 0), 0);
+      const originalVariants = variants.map(v => originalProducts.find(op => op.id === v.id));
+      const originalTotalQuantity = originalVariants.reduce((sum, v) => sum + (v?.quantity || 0), 0);
+
+      if (totalQuantity > originalTotalQuantity) {
+        return "font-bold text-green-600"; // Quantità totale aumentata
+      } else if (totalQuantity < originalTotalQuantity) {
+        return "font-bold text-yellow-600"; // Quantità totale diminuita
+      }
+      return ""; // Nessuna modifica
+    }
+
+    // Logica per le righe normali
+    const originalProduct = originalProducts.find(p => p.id === product.id);
+    if (!originalProduct) return "font-bold text-green-600"; // Nuovo prodotto
+    
+    if (product.quantity > originalProduct.quantity) {
+      return "font-bold text-green-600"; // Quantità aumentata (verde)
+    } else if (product.quantity < originalProduct.quantity) {
+      return "font-bold text-yellow-600"; // Quantità diminuita (giallo)
+    }
+    return ""; // Nessuna modifica
+  };
+
+  const isQuantityModified = (product: LoadProduct): boolean => {
+    const originalProduct = originalProducts.find(p => p.id === product.id);
+    return originalProduct ? originalProduct.quantity !== product.quantity : true;
+  };
+
+  const isNewProduct = (product: LoadProduct): boolean => {
+    return !originalProducts.some(p => p.id === product.id);
+  };
+
+  // Funzione di utilità per convertire da Product a LoadProduct
+  const convertToLoadProduct = (product: Product): LoadProduct => ({
+    ...product,
+    cost: product.wholesale_price,
+    quantity: 1,
+    size_name: product.size_name,
+    attributes: product.attributes.map(attr => ({
+      ...attr,
+      parameter_description: '',
+      parameter_is_required: false,
+      parameter_is_expandable: false
+    }))
+  });
 
   if (!load) return <div>Loading...</div>
 
   return (
-    <div className="container mx-auto p-4">
-      <div className="bg-white p-o mb-0">
-        <div className="grid grid-cols-4 gap-4 mb-0">
-          <div className="mb-4">
+    <div className="min-h-screen bg-gray-50">
+      <div className="container mx-auto py-4">
+        {/* Header Section */}
+        <div className="bg-white rounded-lg shadow-sm p-4 mb-4">
+          <div className="grid grid-cols-4 gap-4">
+            <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Codice</label>
             <Input
               value={load.code}
               disabled={isLoadDisabled}
               onChange={(e) => handleLoadChange('code', e.target.value)}
+                className="bg-white h-8"
             />
           </div>
+            <div>
           <SelectWithNullOption
             options={supplies.map(supply => ({ value: supply.id.toString(), label: supply.name }))}
             value={load.supply_id?.toString() ?? null}
@@ -594,14 +1434,19 @@ export default function LoadDetailPage() {
             label="Fornitura"
             nullOptionLabel="Nessuna fornitura"
           />
+            </div>
           <div>
-            <label className="text-sm font-medium">Stato</label>
-            <div className="mt-1">
-              <span className={`inline-flex items-center rounded-md border px-2 py-1 text-sm font-medium ${getStatusBadgeStyle(load?.status_id || 0)}`}>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Stato</label>
+              <div className="h-8 flex items-center">
+                <span className={cn(
+                  "inline-flex items-center rounded-md border px-2 py-1 text-sm font-medium",
+                  getStatusBadgeStyle(load?.status_id || 0)
+                )}>
                 {statuses.find(s => s.id === load?.status_id)?.name || ''}
               </span>
             </div>
           </div>
+            <div>
           <SelectWithNullOption
             options={warehouses.map(warehouse => ({ value: warehouse.id.toString(), label: warehouse.name }))}
             value={load.warehouse_id?.toString() ?? null}
@@ -610,38 +1455,59 @@ export default function LoadDetailPage() {
             label="Magazzino"
             nullOptionLabel="Seleziona un magazzino"
           />
+            </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-4 mb-1">
-          <Card className="shadow-sm h-[70px]">
-            <CardContent className="pt-2 ">
-              <h3 className="text-xs font-semibold mb-2">Totale Carico</h3>
-              <p className="text-xl font-bold">€{summary.totalCost.toFixed(2)}</p>
+          {/* Summary Cards */}
+          <div className="grid grid-cols-4 gap-4 mt-4">
+       
+            <Card className="bg-white border">
+              <CardContent className="p-3">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-sm font-medium text-gray-500">Numero Modelli</h3>
+                  <p className="text-lg font-bold text-gray-900">{summary.uniqueModels}</p>
+                </div>
             </CardContent>
           </Card>
-          <Card className="shadow-xs h-[70px]">
-            <CardContent className="pt-2">
-              <h3 className="text-sm font-semibold mb-2">Articoli Caricati</h3>
-              <p className="text-xl font-bold">{summary.totalItems}</p>
+              <Card className="bg-white border">
+              <CardContent className="p-3">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-sm font-medium text-gray-500">Totale Varianti</h3>
+                  <p className="text-lg font-bold text-gray-900">{summary.uniqueCombinations}</p>
+                </div>
             </CardContent>
           </Card>
-          <Card className="shadow-xs h-[70px]">
-            <CardContent className="pt-2">
-              <h3 className="text-sm font-semibold mb-2">Numero Modelli</h3>
-              <p className="text-xl font-bold">{summary.uniqueModels}</p>
+              <Card className="bg-white border">
+              <CardContent className="p-3">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-sm font-medium text-gray-500">Articoli Caricati</h3>
+                  <p className="text-lg font-bold text-gray-900">{summary.totalItems}</p>
+                </div>
             </CardContent>
           </Card>
+                 <Card className="bg-white border">
+              <CardContent className="p-3">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-sm font-medium text-gray-500">Totale Carico</h3>
+                  <p className="text-lg font-bold text-gray-900">€{summary.totalCost.toFixed(2)}</p>
         </div>
+              </CardContent>
+            </Card>
 
 
         </div>
-        <div className="sticky top-0 bg-white z-10 py-4">
-        <div className="flex  justify-between items-center mb-4">
-          <div className="relative flex items-center space-x-2 gap-4 w-3/5">
-            <ScanBarcode className="absolute left-4 top-2.5 h-4 w-4 text-muted-foreground " />
+        </div>
+
+        {/* Products Section */}
+        <div className="bg-white rounded-lg shadow-sm">
+          {/* Search and Actions Bar */}
+          <div className="sticky top-0 bg-white z-50 border-b border-gray-200">
+            <div className="p-4 flex justify-between items-center">
+              <div className="relative flex items-center w-1/2">
+                <ScanBarcode className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
             <Input
               type="search"
-              placeholder="Type a barcode or search product..."
+                  placeholder="Scansiona codice a barre..."
               value={searchTerm}
               onChange={(e) => {
                 setSearchTerm(e.target.value);
@@ -649,269 +1515,180 @@ export default function LoadDetailPage() {
               }}
               onBlur={() => setSearchTerm('')}
               ref={searchInputRef}
-              className="w-full appearance-none bg-background pl-8 shadow-none md:w-2/3 lg:w-3/3"
+                  className="pl-10 bg-white"
               disabled={isLoadDisabled}
             />
            </div>
-          <div className="flex items-center space-x-2">
+              <div className="flex items-center gap-4">
+                <Button
+                  onClick={handleSave}
+                  disabled={!isChanged || isLoadDisabled}
+                  variant="outline"
+                  className="font-medium"
+                >
+                  Salva
+                </Button>
+                {isChanged && (
+                  <Button
+                    onClick={handleCancel}
+                    variant="ghost"
+                    className="font-medium text-red-600 hover:text-red-700 hover:bg-red-50"
+                  >
+                    Annulla Modifiche
+                  </Button>
+                )}
             <Dialog open={isProductDialogOpen} onOpenChange={setIsProductDialogOpen}>
               <DialogTrigger asChild>
-                <Button disabled={isLoadDisabled}>
+                    <Button disabled={isLoadDisabled} className="font-medium">
                   <Plus className="mr-2 h-4 w-4" /> Aggiungi Prodotti
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-0">
-                <DialogHeader className="px-6 py-4 border-b">
-                  <DialogTitle>Aggiungi Prodotto</DialogTitle>
-                </DialogHeader>
-                
-                <div className="flex-1 overflow-hidden flex flex-col p-6 gap-4">
-                  {/* Search Bar */}
-                  <div className="flex items-center space-x-2 sticky top-0 bg-white pb-4">
-                    <Input
-                      placeholder="Cerca per codice articolo, variante o barcode..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      disabled={isLoadDisabled}
-                      ref={searchInputRef}
-                      className="flex-1"
-                    />
-                    <Button variant="outline" size="icon" disabled={isLoadDisabled}>
-                      <Search className="h-4 w-4" />
-                    </Button>
-                    <Button variant="outline" size="icon" disabled={isLoadDisabled}>
-                      <ScanBarcode className="h-4 w-4" />
-                    </Button>
-                  </div>
-
-                  {/* Table Container */}
-                  <div className="flex-1 overflow-auto border rounded-md">
-                    <Table>
-                      <TableHeader className="sticky top-0 bg-white">
-                        <TableRow>
-                          <TableHead>Articolo</TableHead>
-                          <TableHead>Variante</TableHead>
-                          <TableHead>Taglia</TableHead>
-                          <TableHead className="text-right">Prezzo Wholesale</TableHead>
-                          <TableHead className="text-right">Disponibilità</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {allProducts
-                          .filter(product => 
-                            searchTerm ? (
-                              product.article_code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                              product.variant_code?.toLowerCase().includes(searchTerm.toLowerCase())
-                            ) : true
-                          )
-                          .map((product) => (
-                            <TableRow
-                              key={product.id}
-                              onClick={() => handleAddProduct(product)}
-                              className="cursor-pointer hover:bg-gray-100"
-                            >
-                              <TableCell>{product.article_code}</TableCell>
-                              <TableCell>{product.variant_code}</TableCell>
-                              <TableCell>{product.size}</TableCell>
-                              <TableCell className="text-right">
-                                {(Number(product.wholesale_price) || 0).toFixed(2)}
-                              </TableCell>
-                              <TableCell>
-                                <div className="flex flex-col gap-1">
-                                  {product.availability?.map((av) => (
-                                    <div key={av.warehouse_id} className="text-xs flex justify-between">
-                                      <span className="font-medium">{av.warehouse_name}:</span>
-                                      <span className={`${av.quantity > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                        {av.quantity}
-                                      </span>
-                                    </div>
-                                  ))}
-                                </div>
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                </div>
-
-                <DialogFooter className="px-6 py-4 border-t">
-                  <Button variant="outline" onClick={() => setIsProductDialogOpen(false)}>
-                    Chiudi
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
+                  <AddProductsModal 
+                    isOpen={isProductDialogOpen}
+                    onOpenChange={setIsProductDialogOpen}
+                    onAddProduct={(products) => {
+                      const convertedProducts = products.map(p => ({
+                        ...p,
+                        attributes: p.attributes.map(attr => ({
+                          ...attr,
+                          parameter_description: '',
+                          parameter_is_required: false,
+                          parameter_is_expandable: false
+                        }))
+                      })) as unknown as Product[];
+                      handleAddProduct(convertedProducts);
+                    }}
+                    warehouseId={load.warehouse_id}
+                    loadProducts={loadProducts.map(p => ({
+                      ...p,
+                      attributes: p.attributes.map(attr => ({
+                        parameter_id: attr.parameter_id,
+                        parameter_name: attr.parameter_name,
+                        attribute_id: attr.attribute_id,
+                        attribute_name: attr.attribute_name
+                      }))
+                    })) as unknown as ModalProduct[]}
+                  />
             </Dialog>
-            <div className="flex justify-end space-x-4">
-              <Button
-                onClick={handleSave}
-                disabled={!isChanged || isLoadDisabled}
-              >
-                Salva
-              </Button>
               {load.status_id === 9 && (
                 <>
                   <Button
-                    onClick={() => setSelectedAction('confirm')}
+                      onClick={handleConfirmLoad}
                     disabled={isConfirming || loadProducts.length === 0}
                     variant="default"
-                    className="bg-green-600 hover:bg-green-700"
+                      className="bg-green-600 hover:bg-green-700 font-medium"
                   >
                     {isConfirming ? "Confermando..." : "Conferma Carico"}
                   </Button>
                   <Button
-                    onClick={() => setSelectedAction('delete')}
+                      onClick={handleDeleteClick}
                     disabled={isDeleting}
                     variant="ghost"
                     size="icon"
-                    className="text-red-600 hover:text-red-700 hover:bg-red-100"
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
                   >
                     <Trash2 className="h-5 w-5" />
                   </Button>
                 </>
+              )}
+                {load.status_id === 10 && (
+                  <Button
+                    onClick={handleRevokeLoad}
+                    disabled={isRevoking}
+                    variant="destructive"
+                  >
+                    {isRevoking ? "Revocando..." : "Revoca Carico"}
+                  </Button>
               )}
               {load.status_id === 11 && (
                 <>
                   <Button
-                    onClick={() => setSelectedAction('confirm')}
+                      onClick={handleConfirmLoad}
                     disabled={isConfirming || loadProducts.length === 0}
                     variant="default"
-                    className="bg-green-600 hover:bg-green-700"
+                      className="bg-green-600 hover:bg-green-700 font-medium"
                   >
                     {isConfirming ? "Confermando..." : "Riconferma Carico"}
                   </Button>
                   <Button
-                    onClick={() => setSelectedAction('delete')}
+                      onClick={handleDeleteLoad}
                     disabled={isDeleting}
                     variant="ghost"
                     size="icon"
-                    className="text-red-600 hover:text-red-700 hover:bg-red-100"
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
                   >
                     <Trash2 className="h-5 w-5" />
                   </Button>
                 </>
               )}
-              {load.status_id === 10 && (
-                <Button
-                  onClick={() => setSelectedAction('revoke')}
-                  disabled={isRevoking}
-                  variant="destructive"
-                >
-                  {isRevoking ? "Revocando..." : "Revoca Carico"}
-                </Button>
-              )}
             </div>
           </div>
+          </div>
+
+          {/* Products Table */}
+          <LoadProductsTable
+            loadProducts={loadProducts}
+            allProducts={allProducts}
+            isLoadDisabled={isLoadDisabled}
+            expandedRows={expandedRows}
+            handleProductChange={(product: LoadProduct, field: string | number | symbol, value: any) => {
+              if (typeof field === 'string') {
+                handleProductChange(product, field as keyof LoadProduct, value);
+              }
+            }}
+            handleRemoveProduct={handleRemoveProduct}
+            handleQuantityChange={handleQuantityChange}
+            isNewProduct={isNewProduct}
+            getQuantityStyle={getQuantityStyle}
+            flashingRows={flashingRows}
+            flashingQuantities={flashingQuantities}
+            toggleExpansion={toggleExpansion}
+            handleAddProduct={handleAddProduct}
+            sortSizes={sortSizes}
+            toggleAllRows={toggleAllRows}
+            isQuantityModified={isQuantityModified}
+          />
         </div>
       </div>
 
-      {/* Dialog di conferma */}
-      <Dialog open={!!selectedAction} onOpenChange={() => setSelectedAction(null)}>
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Conferma operazione</DialogTitle>
+            <DialogTitle>Conferma Annullamento</DialogTitle>
             <DialogDescription>
-              {selectedAction === 'confirm' && (load?.status_id === 11 ? "Sei sicuro di voler riconfermare questo carico?" : "Sei sicuro di voler confermare questo carico?")}
-              {selectedAction === 'revoke' && "Sei sicuro di voler revocare questo carico?"}
-              {selectedAction === 'delete' && "Sei sicuro di voler cancellare questo carico?"}
+              Sei sicuro di voler annullare tutte le modifiche?
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setSelectedAction(null)}>Annulla</Button>
-            <Button 
-              onClick={handleConfirmAction}
-              variant={selectedAction === 'confirm' ? 'default' : 'destructive'}
-              className={selectedAction === 'confirm' ? 'bg-green-600 hover:bg-green-700' : ''}
-            >
-              Conferma
+            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+              No, mantieni
+            </Button>
+            <Button variant="destructive" onClick={handleConfirmCancel}>
+              Sì, annulla
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Articolo</TableHead>
-            <TableHead>Variante</TableHead>
-            <TableHead>Taglia</TableHead>
-            <TableHead>Prezzo Wholesale</TableHead>
-            <TableHead>Costo</TableHead>
-            <TableHead>Quantità</TableHead>
-            <TableHead>Totale Costo</TableHead>
-            <TableHead>Azione</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody ref={tableRef}>
-          {loadProducts.map((product, index) => (
-            <TableRow key={index}
-            className={animatedRowIndex === index ? 'animate-shake' : ''}>
-              <TableCell>{product.article_code}</TableCell>
-              <TableCell>{product.variant_code}</TableCell>
-              <TableCell>{product.size}</TableCell>
-              <TableCell>{(Number(product.wholesale_price) || 0).toFixed(2)}</TableCell>
-              <TableCell>
-                <Input
-                  type="number"
-                  value={product.cost.toString()}
-                  disabled={isLoadDisabled}
-                  onChange={(e) => handleProductChange(index, 'cost', parseFloat(e.target.value))}
-                />
-              </TableCell>
-              <TableCell className="flex items-center space-x-2">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  disabled={isLoadDisabled}
-                  onClick={() => handleQuantityChange(index, -1)}
-                >
-                  <Minus className="h-4 w-4" />
-                </Button>
-                <Input
-                  type="number"
-                  value={product.quantity.toString()}
-                  disabled={isLoadDisabled}
-                  onChange={(e) => handleProductChange(index, 'quantity', parseInt(e.target.value))}
-                  className="w-16 text-center"
-                />
-                <Button
-                  variant="outline"
-                  size="icon"
-                  disabled={isLoadDisabled}
-                  onClick={() => handleQuantityChange(index, 1)}
-                >
-                  <Plus className="h-4 w-4" />
-                </Button>
-              </TableCell>
-              <TableCell>€{(product.cost * product.quantity).toFixed(2)}</TableCell>
-              <TableCell>
-                <Button variant="destructive" disabled={isLoadDisabled} onClick={() => handleRemoveProduct(index)}>
-                  <X className="h-4 w-4" />
-                </Button>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-      <style jsx global>{`
-        @keyframes shake {
-          0%, 100% { 
-            transform: translateX(0);
-            background-color: transparent;
-          }
-          25% { 
-            transform: translateX(-8px);
-            background-color: rgba(59, 130, 246, 0.1);
-          }
-          75% { 
-            transform: translateX(8px);
-            background-color: rgba(59, 130, 246, 0.1);
-          }
-        }
-        .animate-shake {
-          animation: shake 0.8s ease-in-out;
-        }
-      `}</style>
+      {/* Modale di conferma cancellazione */}
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Conferma Cancellazione</DialogTitle>
+            <DialogDescription>
+              Sei sicuro di voler cancellare questo carico? Tutte le modifiche non salvate andranno perse.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
+              No, mantieni
+                      </Button>
+            <Button variant="destructive" onClick={handleDeleteLoad}>
+              Sì, cancella
+                      </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

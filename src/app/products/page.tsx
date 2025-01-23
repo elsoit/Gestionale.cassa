@@ -4,7 +4,7 @@ import React, { useEffect, useState, Suspense } from 'react'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { AlertCircle, Loader2, MoreHorizontal, Pencil, Trash, Plus, Copy, Barcode, Edit, FileEdit, X } from "lucide-react"
+import { AlertCircle, Loader2, MoreHorizontal, Pencil, Trash, Plus, Copy, Barcode, Edit, FileEdit, X, Camera } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Switch } from "@/components/ui/switch"
@@ -19,6 +19,8 @@ import { GroupEditDialog } from '../components/group-edit-dialog'
 import GroupBarcodesDialog from '@/components/GroupBarcodesDialog'
 import NestedFilterMenu from '../components/nested-filter-menu'
 import { useRouter, useSearchParams } from 'next/navigation'
+import PhotoManagementDialog from '../components/PhotoManagementDialog'
+import Image from 'next/image'
 
 interface Brand {
   id: number;
@@ -75,6 +77,11 @@ interface Product {
     attribute_name: string;
     attribute_value?: string;
   }>;
+  main_photo?: {
+    id: number;
+    url: string;
+    main: boolean;
+  };
 }
 
 interface PriceRange {
@@ -96,6 +103,18 @@ interface Filters {
   [key: string]: number[]
 }
 
+interface ProductInGroup {
+  id: number;
+  size_id: number;
+  size_name: string;
+  total_availability: number;
+  main_photo?: {
+    id: number;
+    url: string;
+    main: boolean;
+  };
+}
+
 interface ProductGroup {
   article_code: string;
   variant_code: string;
@@ -108,12 +127,7 @@ interface ProductGroup {
   size_group_id?: number;
   size_group_name?: string;
   attributes?: Product['attributes'];
-  products: Array<{
-    id: number;
-    size_id: number;
-    size_name: string;
-    total_availability: number;
-  }>;
+  products: ProductInGroup[];
   sizes: Array<{
     id: number;
     name: string;
@@ -121,6 +135,11 @@ interface ProductGroup {
   total_availability: number;
   created_at: string;
   updated_at: string;
+  main_photo?: {
+    id: number;
+    url: string;
+    main: boolean;
+  };
 }
 
 interface Parameter {
@@ -165,6 +184,85 @@ const highlightSearchTerm = (text: string, searchTerm: string) => {
     regex.test(part) ? 
       <span key={i} className="bg-yellow-200">{part}</span> : 
       part
+  );
+};
+
+const fetchMainPhoto = async (article_code: string, variant_code: string) => {
+  try {
+    // Normalizza i codici per la ricerca
+    const normalizedArticleCode = article_code.replace(/\s+/g, '').toLowerCase();
+    const normalizedVariantCode = variant_code.replace(/\s+/g, '').toLowerCase();
+    
+    const response = await fetch(`${server}/api/products/photos/${normalizedArticleCode}/${normalizedVariantCode}/main`);
+    if (!response.ok) return null;
+    const photo = await response.json();
+    
+    // Verifica che la foto corrisponda effettivamente al prodotto
+    if (photo && 
+        photo.article_code === normalizedArticleCode && 
+        photo.variant_code === normalizedVariantCode) {
+      return photo;
+    }
+    return null;
+  } catch (error) {
+    console.error('Error fetching main photo:', error);
+    return null;
+  }
+};
+
+const server = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3003';
+
+// Aggiungi queste configurazioni per Next.js Image in cima al file
+const imageLoader = ({ src }: { src: string }) => {
+  // Se l'URL è già completo, usalo direttamente
+  if (src.startsWith('http')) {
+    return src;
+  }
+  // Altrimenti, aggiungi il PUBLIC_URL
+  const PUBLIC_URL = process.env.NEXT_PUBLIC_PUBLIC_URL || 'https://pub-f4e1b9395e524051a44e01925c9722f0.r2.dev';
+  return `${PUBLIC_URL}/${src}`;
+};
+
+// Aggiungi questa funzione per generare i placeholder blurred
+const shimmer = (w: number, h: number) => `
+<svg width="${w}" height="${h}" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+  <defs>
+    <linearGradient id="g">
+      <stop stop-color="#f6f7f8" offset="0%" />
+      <stop stop-color="#edeef1" offset="50%" />
+      <stop stop-color="#f6f7f8" offset="100%" />
+    </linearGradient>
+  </defs>
+  <rect width="${w}" height="${h}" fill="#f6f7f8" />
+  <rect id="r" width="${w}" height="${h}" fill="url(#g)" />
+</svg>`;
+
+const toBase64 = (str: string) =>
+  typeof window === 'undefined'
+    ? Buffer.from(str).toString('base64')
+    : window.btoa(str);
+
+// Modifica il componente dell'immagine nella tabella
+const ProductImage = ({ url, alt }: { url: string; alt: string }) => {
+  return (
+    <div className="relative w-12 h-12">
+      <Image
+        src={url}
+        alt={alt}
+        fill
+        loader={imageLoader}
+        className="object-cover rounded-md"
+        sizes="48px"
+        placeholder="blur"
+        blurDataURL={`data:image/svg+xml;base64,${toBase64(shimmer(48, 48))}`}
+        priority={false}
+        loading="lazy"
+        onError={(e) => {
+          const target = e.target as HTMLImageElement;
+          target.src = '/images/placeholder-product.png';
+        }}
+      />
+    </div>
   );
 };
 
@@ -227,7 +325,8 @@ function TableContent() {
   const [selectedGroupForBarcodes, setSelectedGroupForBarcodes] = useState<Product[]>([])
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const { toast } = useToast()
-  const server = 'http://localhost:3003';
+  const [photoDialogOpen, setPhotoDialogOpen] = useState(false);
+  const [selectedPhotoProduct, setSelectedPhotoProduct] = useState<{ article_code: string; variant_code: string } | null>(null);
 
   // Funzione per aggiornare l'URL con i filtri correnti
   const updateUrlParams = (newSearchTerm?: string, newFilters?: Filters, newAvailability?: AvailabilityFilter, newPriceRanges?: PriceRanges) => {
@@ -304,20 +403,28 @@ function TableContent() {
 
       console.log('Products Response:', productResponse);
       
-      // Assicuriamoci che productResponse.products sia un array
       const productData = Array.isArray(productResponse.products) ? productResponse.products : [];
+
+      // Fetch main photos for all products
+      const productsWithPhotos = await Promise.all(productData.map(async (product: Product) => {
+        const mainPhoto = await fetchMainPhoto(product.article_code, product.variant_code);
+        return {
+          ...product,
+          main_photo: mainPhoto
+        };
+      }));
 
       const availabilityMap = availabilityData.reduce((acc: {[key: number]: number}, item: ProductAvailability) => {
         acc[item.product_id] = (acc[item.product_id] || 0) + item.quantity;
         return acc;
       }, {});
 
-      const productsWithAvailability = productData.map((product: Product) => ({
+      const productsWithAvailability = productsWithPhotos.map((product: Product) => ({
         ...product,
         total_availability: availabilityMap[product.id] || 0
       }));
 
-      setProducts(productsWithAvailability)
+      setProducts(productsWithAvailability);
       setBrands(brandData)
       setSizes(sizeData)
       setSizeGroups(sizeGroupData)
@@ -378,7 +485,7 @@ function TableContent() {
     if (!selectedProduct) return
 
     try {
-      const response = await fetch(`http://localhost:3003/api/products/${selectedProduct.id}`, {
+      const response = await fetch(`${server}/api/products/${selectedProduct.id}`, {
         method: 'DELETE',
         mode: 'cors',
         credentials: 'include'
@@ -399,7 +506,7 @@ function TableContent() {
   const fetchProductBarcodes = async (productId: number): Promise<Barcode[]> => {
     try {
       console.log(`Fetching barcodes for product ID: ${productId}`);
-      const response = await fetch(`http://localhost:3003/api/barcode/product/${productId}/barcodes`, {
+      const response = await fetch(`${server}/api/barcode/product/${productId}/barcodes`, {
         mode: 'cors',
         credentials: 'include'
       });
@@ -420,7 +527,7 @@ function TableContent() {
   const handleAddBarcode = async (productId: number, barcodeCode: string) => {
     try {
       console.log(`Adding barcode ${barcodeCode} to product ID: ${productId}`);
-      const response = await fetch('http://localhost:3003/api/barcode/product-barcodes', {
+      const response = await fetch(`${server}/api/barcode/product-barcodes`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -447,7 +554,7 @@ function TableContent() {
   const handleDeleteBarcode = async (productId: number, barcodeId: number) => {
     try {
       console.log(`Deleting barcode ${barcodeId} for product ${productId}`);
-      const response = await fetch(`http://localhost:3003/api/barcode/product/${productId}/barcode/${barcodeId}`, {
+      const response = await fetch(`${server}/api/barcode/product/${productId}/barcode/${barcodeId}`, {
         method: 'DELETE',
         mode: 'cors',
         credentials: 'include'
@@ -601,7 +708,8 @@ function TableContent() {
             id: product.id,
             size_id: product.size_id,
             size_name: product.size_name || '',
-            total_availability: product.total_availability || 0
+            total_availability: product.total_availability || 0,
+            main_photo: product.main_photo
           }],
           sizes: [{
             id: product.size_id,
@@ -609,20 +717,26 @@ function TableContent() {
           }],
           total_availability: product.total_availability || 0,
           created_at: product.created_at || new Date().toISOString(),
-          updated_at: product.updated_at || product.created_at || new Date().toISOString()
+          updated_at: product.updated_at || product.created_at || new Date().toISOString(),
+          main_photo: product.main_photo
         };
       } else {
         acc[key].products.push({
           id: product.id,
           size_id: product.size_id,
           size_name: product.size_name || '',
-          total_availability: product.total_availability || 0
+          total_availability: product.total_availability || 0,
+          main_photo: product.main_photo
         });
         acc[key].sizes.push({
           id: product.size_id,
           name: product.size_name || ''
         });
         acc[key].total_availability += (product.total_availability || 0);
+
+        if (product.main_photo && !acc[key].main_photo) {
+          acc[key].main_photo = product.main_photo;
+        }
 
         const currentUpdated = new Date(product.updated_at || product.created_at || new Date());
         const groupUpdated = new Date(acc[key].updated_at);
@@ -679,6 +793,14 @@ function TableContent() {
            p.status_id === group.status_id &&
            formatPrice(p.wholesale_price) === formatPrice(group.wholesale_price) &&
            formatPrice(p.retail_price) === formatPrice(group.retail_price);
+  };
+
+  const handlePhotoManagement = (group: any) => {
+    setSelectedPhotoProduct({
+      article_code: group.article_code,
+      variant_code: group.variant_code
+    });
+    setPhotoDialogOpen(true);
   };
 
   return (
@@ -779,6 +901,7 @@ function TableContent() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead>Foto</TableHead>
                 <TableHead>Codice Articolo</TableHead>
                 <TableHead>Variante</TableHead>
                 <TableHead>Brand</TableHead>
@@ -827,6 +950,14 @@ function TableContent() {
                   
                   return (
                     <TableRow key={index} className={bgClass}>
+                      <TableCell>
+                        {group.main_photo?.url && (
+                          <ProductImage 
+                            url={group.main_photo.url} 
+                            alt={`${group.article_code} ${group.variant_code}`} 
+                          />
+                        )}
+                      </TableCell>
                       <TableCell className="font-medium">
                         {highlightSearchTerm(group.article_code?.toUpperCase() || '', searchTerm)}
                       </TableCell>
@@ -930,6 +1061,10 @@ function TableContent() {
                                 <Trash className="mr-2 h-4 w-4" />
                                 Elimina
                               </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handlePhotoManagement(group)}>
+                                <Camera className="mr-2 h-4 w-4" />
+                                Gestisci foto
+                              </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => {
                                 // Prendiamo i prodotti del gruppo
                                 const groupProducts = products.filter(p => 
@@ -1018,6 +1153,14 @@ function TableContent() {
                       key={product.id}
                       className={bgClass}
                     >
+                      <TableCell>
+                        {product.main_photo?.url && (
+                          <ProductImage 
+                            url={product.main_photo.url} 
+                            alt={`${product.article_code} ${product.variant_code}`} 
+                          />
+                        )}
+                      </TableCell>
                       <TableCell>
                         {highlightSearchTerm(product.article_code?.toUpperCase() || '', searchTerm)}
                       </TableCell>
@@ -1113,6 +1256,16 @@ function TableContent() {
                               <Barcode className="mr-2 h-4 w-4" />
                               Aggiungi Barcode
                             </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => {
+                              setSelectedPhotoProduct({
+                                article_code: product.article_code,
+                                variant_code: product.variant_code
+                              });
+                              setPhotoDialogOpen(true);
+                            }}>
+                              <Camera className="mr-2 h-4 w-4" />
+                              Gestisci foto
+                            </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>
@@ -1190,6 +1343,14 @@ function TableContent() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {selectedPhotoProduct && (
+        <PhotoManagementDialog
+          open={photoDialogOpen}
+          onOpenChange={setPhotoDialogOpen}
+          articleCode={selectedPhotoProduct.article_code}
+          variantCode={selectedPhotoProduct.variant_code}
+        />
+      )}
     </div>
   )
 }
