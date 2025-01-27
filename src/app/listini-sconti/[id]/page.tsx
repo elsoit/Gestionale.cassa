@@ -24,8 +24,6 @@ import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import { StaticImport } from 'next/dist/shared/lib/get-img-props'
 
-const server = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3003'
-
 interface Brand {
   id: number
   name: string
@@ -116,7 +114,7 @@ export default function AddProductsToDiscountList() {
         setIsLoading(true)
         
         // Fetch brands
-        const brandsResponse = await fetch(`${server}/api/brands`)
+        const brandsResponse = await fetch(`${process.env.API_URL}/api/brands`)
         if (!brandsResponse.ok) throw new Error('Failed to fetch brands')
         const brandsData = await brandsResponse.json()
         const brandsMap: Record<number, Brand> = {}
@@ -126,7 +124,7 @@ export default function AddProductsToDiscountList() {
         setBrands(brandsMap)
 
         // Fetch sizes
-        const sizesResponse = await fetch(`${server}/api/sizes`)
+        const sizesResponse = await fetch(`${process.env.API_URL}/api/sizes`)
         if (!sizesResponse.ok) throw new Error('Failed to fetch sizes')
         const sizesData = await sizesResponse.json()
         const sizesMap: Record<number, Size> = {}
@@ -144,7 +142,7 @@ export default function AddProductsToDiscountList() {
           searchParams.set('priceRanges', JSON.stringify(priceRanges))
         }
 
-        const productsResponse = await fetch(`${server}/api/products?${searchParams.toString()}`)
+        const productsResponse = await fetch(`${process.env.API_URL}/api/products?${searchParams.toString()}`)
         if (!productsResponse.ok) throw new Error('Failed to fetch products')
         const productsData = await productsResponse.json()
         
@@ -164,7 +162,7 @@ export default function AddProductsToDiscountList() {
             productsData.products.map(async (product: Product) => {
               try {
                 const photoResponse = await fetch(
-                  `${server}/api/products/photos/${product.article_code}/${product.variant_code}/main`
+                  `${process.env.API_URL}/api/products/photos/${product.article_code}/${product.variant_code}/main`
                 )
                 if (photoResponse.ok) {
                   const photoData = await photoResponse.json()
@@ -202,7 +200,7 @@ export default function AddProductsToDiscountList() {
           setParameters(allParameters)
 
           // Fetch availabilities
-          const availabilityResponse = await fetch(`${server}/api/product-availability`)
+          const availabilityResponse = await fetch(`${process.env.API_URL}/api/product-availability`)
           if (!availabilityResponse.ok) throw new Error('Failed to fetch availability')
           const availabilityData = await availabilityResponse.json()
           
@@ -228,7 +226,7 @@ export default function AddProductsToDiscountList() {
         }
 
         // Fetch discount list details and discounts
-        const listResponse = await fetch(`${server}/api/discount-lists/${params.id}`)
+        const listResponse = await fetch(`${process.env.API_URL}/api/discount-lists/${params.id}`)
         if (!listResponse.ok) throw new Error('Failed to fetch discount list')
         const listData = await listResponse.json()
         setListName(listData.name || 'Listino Sconti')
@@ -247,7 +245,7 @@ export default function AddProductsToDiscountList() {
         }
 
         // Fetch price lists
-        const priceListsResponse = await fetch(`${server}/api/price-lists`)
+        const priceListsResponse = await fetch(`${process.env.API_URL}/api/price-lists`)
         if (!priceListsResponse.ok) throw new Error('Failed to fetch price lists')
         const priceListsData = await priceListsResponse.json()
         setPriceLists(priceListsData)
@@ -266,7 +264,7 @@ export default function AddProductsToDiscountList() {
     const fetchOtherListPrices = async () => {
       if (selectedPriceList) {
         try {
-          const response = await fetch(`${server}/api/price-lists/${selectedPriceList}/products`)
+          const response = await fetch(`${process.env.API_URL}/api/price-lists/${selectedPriceList}/products`)
           if (!response.ok) throw new Error('Failed to fetch other list prices')
           const data = await response.json()
           const pricesMap: Record<number, number> = {}
@@ -300,7 +298,7 @@ export default function AddProductsToDiscountList() {
       const discount = selectedProducts[productId] || 0
       const discountedPrice = basePrice * (1 - discount / 100)
 
-      const response = await fetch(`${server}/api/discount-lists/discounts`, {
+      const response = await fetch(`${process.env.API_URL}/api/discount-lists/discounts`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -469,22 +467,14 @@ export default function AddProductsToDiscountList() {
                   const discount = selectedProducts[id] || 0
                   const discountedPrice = parseFloat((basePrice * (1 - discount / 100)).toFixed(2))
                   
-                  console.log(`Product ${id}:`, {
-                    basePrice,
-                    discount,
-                    discountedPrice
-                  })
-                  
                   return {
                     discount_list_id: parseInt(params.id as string),
                     product_id: id,
                     discounted_price: discountedPrice
                   }
                 }).filter(p => p.discounted_price >= 0)
-
-                console.log('Products to save:', JSON.stringify(productsToSave, null, 2))
                 
-                const response = await fetch(`${server}/api/discount-lists/discounts`, {
+                const response = await fetch(`${process.env.API_URL}/api/discount-lists/discounts`, {
                   method: 'POST',
                   headers: {
                     'Content-Type': 'application/json',
@@ -493,8 +483,6 @@ export default function AddProductsToDiscountList() {
                 })
 
                 const responseData = await response.json().catch(() => null)
-                console.log('Raw response:', response)
-                console.log('Response data:', responseData)
 
                 if (!response.ok) {
                   throw new Error(responseData?.error || 'Errore nel salvataggio sconti')

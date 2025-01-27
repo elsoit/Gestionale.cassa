@@ -27,8 +27,6 @@ import {
 } from "@/components/ui/select"
 import { LAYOUTS, LayoutType } from './layouts'
 
-const server = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3003'
-
 const formatPrice = (price: number | string | null | undefined): string => {
   const numPrice = typeof price === 'string' ? parseFloat(price) : price
   return typeof numPrice === 'number' && !isNaN(numPrice)
@@ -106,7 +104,7 @@ export default function LabelPrinting() {
         setIsLoading(true)
         
         // Fetch brands
-        const brandsResponse = await fetch(`${server}/api/brands`)
+        const brandsResponse = await fetch(`${process.env.API_URL}/api/brands`)
         if (!brandsResponse.ok) throw new Error('Failed to fetch brands')
         const brandsData = await brandsResponse.json()
         const brandsMap: Record<number, Brand> = {}
@@ -116,7 +114,7 @@ export default function LabelPrinting() {
         setBrands(brandsMap)
 
         // Fetch sizes
-        const sizesResponse = await fetch(`${server}/api/sizes`)
+        const sizesResponse = await fetch(`${process.env.API_URL}/api/sizes`)
         if (!sizesResponse.ok) throw new Error('Failed to fetch sizes')
         const sizesData = await sizesResponse.json()
         const sizesMap: Record<number, Size> = {}
@@ -126,7 +124,7 @@ export default function LabelPrinting() {
         setSizes(sizesMap)
 
         // Fetch products
-        const productsResponse = await fetch(`${server}/api/products`)
+        const productsResponse = await fetch(`${process.env.API_URL}/api/products`)
         if (!productsResponse.ok) throw new Error('Failed to fetch products')
         const productsData = await productsResponse.json()
         
@@ -139,7 +137,7 @@ export default function LabelPrinting() {
             productsData.products.map(async (product: Product) => {
               try {
                 const photoResponse = await fetch(
-                  `${server}/api/products/photos/${product.article_code}/${product.variant_code}/main`
+                  `${process.env.API_URL}/api/products/photos/${product.article_code}/${product.variant_code}/main`
                 )
                 if (photoResponse.ok) {
                   const photoData = await photoResponse.json()
@@ -155,7 +153,7 @@ export default function LabelPrinting() {
           setMainPhotos(photosMap)
 
           // Fetch delle disponibilità totali
-          const availabilityResponse = await fetch(`${server}/api/product-availability`)
+          const availabilityResponse = await fetch(`${process.env.API_URL}/api/product-availability`)
           if (!availabilityResponse.ok) throw new Error('Failed to fetch availability')
           const availabilityData = await availabilityResponse.json()
           
@@ -180,19 +178,19 @@ export default function LabelPrinting() {
         }
 
         // Fetch price lists
-        const priceListsResponse = await fetch(`${server}/api/price-lists`)
+        const priceListsResponse = await fetch(`${process.env.API_URL}/api/price-lists`)
         if (!priceListsResponse.ok) throw new Error('Failed to fetch price lists')
         const priceListsData = await priceListsResponse.json()
         setPriceLists(priceListsData || [])
 
         // Fetch discount lists
-        const discountListsResponse = await fetch(`${server}/api/discount-lists`)
+        const discountListsResponse = await fetch(`${process.env.API_URL}/api/discount-lists`)
         if (!discountListsResponse.ok) throw new Error('Failed to fetch discount lists')
         const discountListsData = await discountListsResponse.json()
         setDiscountLists(discountListsData || [])
 
         // Fetch warehouses
-        const warehousesResponse = await fetch(`${server}/api/warehouses`)
+        const warehousesResponse = await fetch(`${process.env.API_URL}/api/warehouses`)
         if (!warehousesResponse.ok) throw new Error('Failed to fetch warehouses')
         const warehousesData = await warehousesResponse.json()
         setWarehouses(warehousesData)
@@ -218,7 +216,7 @@ export default function LabelPrinting() {
 
       try {
         const availabilityPromises = selectedWarehouses.map(warehouseId =>
-          fetch(`${server}/api/product-availability/warehouse/${warehouseId}`)
+          fetch(`${process.env.API_URL}/api/product-availability/warehouse/${warehouseId}`)
             .then(res => res.json())
             .then(data => ({ warehouseId, data }))
         )
@@ -252,7 +250,7 @@ export default function LabelPrinting() {
       }
 
       try {
-        const response = await fetch(`${server}/api/price-lists/${selectedBasePriceList}/prices`)
+        const response = await fetch(`${process.env.API_URL}/api/price-lists/${selectedBasePriceList}/prices`)
         if (!response.ok) throw new Error('Failed to fetch list prices')
         const data = await response.json()
         
@@ -280,7 +278,7 @@ export default function LabelPrinting() {
       }
 
       try {
-        const response = await fetch(`${server}/api/discount-lists/${selectedDiscountPriceList}/discounts`)
+        const response = await fetch(`${process.env.API_URL}/api/discount-lists/${selectedDiscountPriceList}/discounts`)
         if (!response.ok) throw new Error('Failed to fetch discount prices')
         const data = await response.json()
         
@@ -368,7 +366,7 @@ export default function LabelPrinting() {
         labelFormat: selectedLabelFormat
       }
 
-      const response = await fetch(`${server}/api/generate-labels`, {
+      const response = await fetch(`${process.env.API_URL}/api/generate-labels`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

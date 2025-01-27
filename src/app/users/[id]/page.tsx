@@ -18,8 +18,6 @@ import { ArrowLeft, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 import { toast } from 'sonner'
 
-const server = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3003';
-
 interface Operator {
   id: number
   code: string
@@ -57,7 +55,7 @@ export default function UserPage() {
   const { data: operators = [] } = useQuery<Operator[]>({
     queryKey: ['operators'],
     queryFn: async () => {
-      const response = await fetch(`${server}/api/operators/select`)
+      const response = await fetch(`${process.env.API_URL}/api/operators/select`)
       if (!response.ok) throw new Error('Network response was not ok')
       return response.json()
     }
@@ -68,7 +66,7 @@ export default function UserPage() {
     queryKey: ['user', params.id],
     queryFn: async () => {
       if (isNew) return null
-      const response = await fetch(`${server}/api/users/${params.id}`)
+      const response = await fetch(`${process.env.API_URL}/api/users/${params.id}`)
       if (!response.ok) throw new Error('Network response was not ok')
       return response.json()
     },
@@ -87,8 +85,8 @@ export default function UserPage() {
 
     try {
       const url = isNew 
-        ? `${server}/api/users`
-        : `${server}/api/users/${params.id}`
+        ? `${process.env.API_URL}/api/users`
+        : `${process.env.API_URL}/api/users/${params.id}`
       
       console.log('Saving user:', user)
       

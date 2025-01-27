@@ -13,21 +13,6 @@ import { cn } from "@/lib/utils"
 import { LoadProductsTable } from '@/components/LoadProductsTable'
 import { AddProductsModal } from "@/components/AddProductsModal"
 
-const server = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3003';
-
-// Aggiungi la funzione per recuperare le foto
-const fetchMainPhoto = async (article_code: string, variant_code: string) => {
-  try {
-    const response = await fetch(`${server}/api/products/photos/${article_code}/${variant_code}/main`);
-    if (!response.ok) return null;
-    const data = await response.json();
-    return data?.url || null;
-  } catch (error) {
-    console.error('Error fetching main photo:', error);
-    return null;
-  }
-};
-
 interface Load {
   id: number
   code: string
@@ -167,6 +152,19 @@ interface AvailabilityItem {
   product_id: number;
 }
 
+// Aggiungi la funzione per recuperare le foto
+const fetchMainPhoto = async (article_code: string, variant_code: string) => {
+  try {
+    const response = await fetch(`${process.env.API_URL}/api/products/photos/${article_code}/${variant_code}/main`);
+    if (!response.ok) return null;
+    const data = await response.json();
+    return data?.url || null;
+  } catch (error) {
+    console.error('Error fetching main photo:', error);
+    return null;
+  }
+};
+
 export default function LoadDetailPage() {
   const params = useParams()
   const { toast } = useToast()
@@ -283,7 +281,7 @@ export default function LoadDetailPage() {
 
   const fetchLoadDetails = async () => {
     try {
-      const response = await fetch(`http://localhost:3003/api/loads/${id}`)
+      const response = await fetch(`${process.env.API_URL}/api/loads/${id}`)
       if (!response.ok) throw new Error('Failed to fetch load details')
       const data = await response.json()
       setLoad(data)
@@ -299,7 +297,7 @@ export default function LoadDetailPage() {
 
   const fetchSupplies = async () => {
     try {
-      const response = await fetch('http://localhost:3003/api/supplies/')
+      const response = await fetch(`${process.env.API_URL}/api/supplies/`)
       if (!response.ok) throw new Error('Failed to fetch supplies')
       const data = await response.json()
       setSupplies(data)
@@ -315,7 +313,7 @@ export default function LoadDetailPage() {
 
   const fetchStatuses = async () => {
     try {
-      const response = await fetch('http://localhost:3003/api/statuses/')
+      const response = await fetch(`${process.env.API_URL}/api/statuses/`)
       if (!response.ok) throw new Error('Failed to fetch statuses')
       const data = await response.json()
       setStatuses(data)
@@ -331,7 +329,7 @@ export default function LoadDetailPage() {
 
   const fetchWarehouses = async () => {
     try {
-      const response = await fetch('http://localhost:3003/api/warehouses/')
+      const response = await fetch(`${process.env.API_URL}/api/warehouses/`)
       if (!response.ok) throw new Error('Failed to fetch warehouses')
       const data = await response.json()
       setWarehouses(data)
@@ -362,16 +360,16 @@ export default function LoadDetailPage() {
       }
 
       // Se non ci sono dati salvati, carica dal server
-      const response = await fetch(`http://localhost:3003/api/load-products/load/${id}`)
+      const response = await fetch(`${process.env.API_URL}/api/load-products/load/${id}`)
       if (!response.ok) throw new Error('Failed to fetch load products')
       const data = await response.json()
       
       const productsWithDetails = await Promise.all(data.map(async (loadProduct: LoadProductData) => {
-        const productResponse = await fetch(`http://localhost:3003/api/products/${loadProduct.product_id}`)
+        const productResponse = await fetch(`${process.env.API_URL}/api/products/${loadProduct.product_id}`)
         if (!productResponse.ok) throw new Error(`Failed to fetch product details for product ${loadProduct.product_id}`)
         const productData = await productResponse.json()
         
-        const sizeResponse = await fetch(`http://localhost:3003/api/sizes/${productData.size_id}`)
+        const sizeResponse = await fetch(`${process.env.API_URL}/api/sizes/${productData.size_id}`)
         if (!sizeResponse.ok) throw new Error(`Failed to fetch size name for size ${productData.size_id}`)
         const sizeData = await sizeResponse.json()
         
@@ -402,7 +400,7 @@ export default function LoadDetailPage() {
 
   const fetchAllProducts = async () => {
     try {
-      const response = await fetch(`${server}/api/products/`)
+      const response = await fetch(`${process.env.API_URL}/api/products/`)
       if (!response.ok) throw new Error('Failed to fetch products')
       const data = await response.json()
       
@@ -675,7 +673,7 @@ export default function LoadDetailPage() {
 
       // Prima salviamo i prodotti rimossi
       for (const removedId of removedProductIds) {
-        const deleteResponse = await fetch(`${server}/api/load-products/${removedId}`, {
+        const deleteResponse = await fetch(`${process.env.API_URL}/api/load-products/${removedId}`, {
           method: 'DELETE'
         })
         if (!deleteResponse.ok) {
@@ -694,13 +692,13 @@ export default function LoadDetailPage() {
 
         let response;
         if (product.load_product_id) {
-          response = await fetch(`${server}/api/load-products/${product.load_product_id}`, {
+          response = await fetch(`${process.env.API_URL}/api/load-products/${product.load_product_id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(productData)
           })
         } else {
-          response = await fetch(`${server}/api/load-products`, {
+          response = await fetch(`${process.env.API_URL}/api/load-products`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(productData)
@@ -754,7 +752,7 @@ export default function LoadDetailPage() {
       await handleSave()
 
       setIsConfirming(true)
-      const response = await fetch(`${server}/api/loads/${id}/confirm`, {
+      const response = await fetch(`${process.env.API_URL}/api/loads/${id}/confirm`, {
         method: 'PUT',
       })
 
@@ -841,8 +839,8 @@ export default function LoadDetailPage() {
     if (term.trim() === '') return;
 
     try {
-      console.log('📡 Chiamata API:', `${server}/api/barcode/barcodes/${term}/product`);
-      const response = await fetch(`${server}/api/barcode/barcodes/${term}/product`, {
+      console.log('📡 Chiamata API:', `${process.env.API_URL}/api/barcode/barcodes/${term}/product`);
+      const response = await fetch(`${process.env.API_URL}/api/barcode/barcodes/${term}/product`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -952,7 +950,7 @@ export default function LoadDetailPage() {
 
     try {
       setIsRevoking(true)
-      const response = await fetch(`http://localhost:3003/api/loads/${id}/revoke`, {
+      const response = await fetch(`${process.env.API_URL}/api/loads/${id}/revoke`, {
         method: 'POST',
       })
 
@@ -989,7 +987,7 @@ export default function LoadDetailPage() {
 
     try {
       setIsDeleting(true);
-      const response = await fetch(`${server}/api/loads/${id}/delete`, {
+      const response = await fetch(`${process.env.API_URL}/api/loads/${id}/delete`, {
         method: 'POST',
       });
 
@@ -1071,13 +1069,13 @@ export default function LoadDetailPage() {
         sizesData,
         availabilityData
       ] = await Promise.all([
-        fetch(`${server}/api/products?${new URLSearchParams({
+        fetch(`${process.env.API_URL}/api/products?${new URLSearchParams({
           search: modalSearchTerm,
           filters: JSON.stringify(modalState.selectedFilters)
         }).toString()}`).then(res => res.json()),
-        fetch(`${server}/api/brands`).then(res => res.json()),
-        fetch(`${server}/api/sizes`).then(res => res.json()),
-        fetch(`${server}/api/product-availability/warehouse/${load.warehouse_id}`).then(res => res.json())
+        fetch(`${process.env.API_URL}/api/brands`).then(res => res.json()),
+        fetch(`${process.env.API_URL}/api/sizes`).then(res => res.json()),
+        fetch(`${process.env.API_URL}/api/product-availability/warehouse/${load.warehouse_id}`).then(res => res.json())
       ]);
 
       // Mappa delle disponibilità per prodotto

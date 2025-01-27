@@ -6,8 +6,6 @@ import { Label } from "@/components/ui/label"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 
-const server = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3003'
-
 interface Address {
   id?: number
   name?: string
@@ -37,7 +35,7 @@ export default function AddressForm({ label, address, onChange }: AddressFormPro
 
     setIsSearching(true)
     try {
-      const response = await fetch(`${server}/api/addresses/search?q=${searchTerm}`)
+      const response = await fetch(`${process.env.API_URL}/api/addresses/search?q=${searchTerm}`)
       if (!response.ok) throw new Error('Network response was not ok')
       const data = await response.json()
       setSuggestions(data)

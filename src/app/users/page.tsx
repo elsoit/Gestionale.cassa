@@ -15,8 +15,6 @@ import { Badge } from "@/components/ui/badge"
 import { Plus, Pencil, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 
-const server = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3003';
-
 interface Operator {
   id: number
   code: string
@@ -39,7 +37,7 @@ export default function UsersPage() {
   const { data: users = [], isLoading, error } = useQuery<User[]>({
     queryKey: ['users'],
     queryFn: async () => {
-      const response = await fetch(`${server}/api/users`)
+      const response = await fetch(`${process.env.API_URL}/api/users`)
       if (!response.ok) throw new Error('Network response was not ok')
       return response.json()
     }

@@ -199,7 +199,7 @@ const fetchMainPhoto = async (article_code: string, variant_code: string) => {
     const normalizedArticleCode = article_code.replace(/\s+/g, '').toLowerCase();
     const normalizedVariantCode = variant_code.replace(/\s+/g, '').toLowerCase();
     
-    const response = await fetch(`${server}/api/products/photos/${normalizedArticleCode}/${normalizedVariantCode}/main`);
+    const response = await fetch(`${process.env.API_URL}/api/products/photos/${normalizedArticleCode}/${normalizedVariantCode}/main`);
     if (!response.ok) return null;
     const photo = await response.json();
     
@@ -215,8 +215,6 @@ const fetchMainPhoto = async (article_code: string, variant_code: string) => {
     return null;
   }
 };
-
-const server = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3003';
 
 // Aggiungi queste configurazioni per Next.js Image in cima al file
 const imageLoader = ({ src }: { src: string }) => {
@@ -434,7 +432,7 @@ function TableContent() {
     
     try {
       const [productResponse, brandData, sizeData, sizeGroupData, statusData, availabilityData] = await Promise.all([
-        fetch(`${server}/api/products?${new URLSearchParams({
+        fetch(`${process.env.API_URL}/api/products?${new URLSearchParams({
           search: searchTerm,
           filters: JSON.stringify({
             ...filters,
@@ -443,11 +441,11 @@ function TableContent() {
             retail_price: priceRanges.retail_price.min !== undefined || priceRanges.retail_price.max !== undefined ? priceRanges.retail_price : undefined
           })
         }).toString()}`, { mode: 'cors', credentials: 'include' }).then(res => res.json()),
-        fetch(`${server}/api/brands`, { mode: 'cors', credentials: 'include' }).then(res => res.json()),
-        fetch(`${server}/api/sizes`, { mode: 'cors', credentials: 'include' }).then(res => res.json()),
-        fetch(`${server}/api/size-groups`, { mode: 'cors', credentials: 'include' }).then(res => res.json()),
-        fetch(`${server}/api/statuses/field/Products`, { mode: 'cors', credentials: 'include' }).then(res => res.json()),
-        fetch(`${server}/api/product-availability`, { mode: 'cors', credentials: 'include' }).then(res => res.json())
+        fetch(`${process.env.API_URL}/api/brands`, { mode: 'cors', credentials: 'include' }).then(res => res.json()),
+        fetch(`${process.env.API_URL}/api/sizes`, { mode: 'cors', credentials: 'include' }).then(res => res.json()),
+        fetch(`${process.env.API_URL}/api/size-groups`, { mode: 'cors', credentials: 'include' }).then(res => res.json()),
+        fetch(`${process.env.API_URL}/api/statuses/field/Products`, { mode: 'cors', credentials: 'include' }).then(res => res.json()),
+        fetch(`${process.env.API_URL}/api/product-availability`, { mode: 'cors', credentials: 'include' }).then(res => res.json())
       ]);
 
       const productData = Array.isArray(productResponse.products) ? productResponse.products : [];
@@ -462,7 +460,7 @@ function TableContent() {
 
       try {
         // Fetch photos for all products in one call
-        const photosResponse = await fetch(`${server}/api/products/photos/bulk`, {
+        const photosResponse = await fetch(`${process.env.API_URL}/api/products/photos/bulk`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
@@ -577,7 +575,7 @@ function TableContent() {
     if (!selectedProduct) return
 
     try {
-      const response = await fetch(`${server}/api/products/${selectedProduct.id}`, {
+      const response = await fetch(`${process.env.API_URL}/api/products/${selectedProduct.id}`, {
         method: 'DELETE',
         mode: 'cors',
         credentials: 'include'
@@ -598,7 +596,7 @@ function TableContent() {
   const fetchProductBarcodes = async (productId: number): Promise<Barcode[]> => {
     try {
       console.log(`Fetching barcodes for product ID: ${productId}`);
-      const response = await fetch(`${server}/api/barcode/product/${productId}/barcodes`, {
+      const response = await fetch(`${process.env.API_URL}/api/barcode/product/${productId}/barcodes`, {
         mode: 'cors',
         credentials: 'include'
       });
@@ -619,7 +617,7 @@ function TableContent() {
   const handleAddBarcode = async (productId: number, barcodeCode: string) => {
     try {
       console.log(`Adding barcode ${barcodeCode} to product ID: ${productId}`);
-      const response = await fetch(`${server}/api/barcode/product-barcodes`, {
+      const response = await fetch(`${process.env.API_URL}/api/barcode/product-barcodes`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -646,7 +644,7 @@ function TableContent() {
   const handleDeleteBarcode = async (productId: number, barcodeId: number) => {
     try {
       console.log(`Deleting barcode ${barcodeId} for product ${productId}`);
-      const response = await fetch(`${server}/api/barcode/product/${productId}/barcode/${barcodeId}`, {
+      const response = await fetch(`${process.env.API_URL}/api/barcode/product/${productId}/barcode/${barcodeId}`, {
         method: 'DELETE',
         mode: 'cors',
         credentials: 'include'
@@ -670,7 +668,7 @@ function TableContent() {
       console.log('handleEdit called with product:', product);
       
       // Carica i dati completi del prodotto
-      const response = await fetch(`${server}/api/products/${product.id}`, {
+      const response = await fetch(`${process.env.API_URL}/api/products/${product.id}`, {
         mode: 'cors',
         credentials: 'include'
       });
@@ -708,7 +706,7 @@ function TableContent() {
 
   const handleCreate = async (productData: Record<string, any>): Promise<void> => {
     try {
-      const response = await fetch(`${server}/api/products`, {
+      const response = await fetch(`${process.env.API_URL}/api/products`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

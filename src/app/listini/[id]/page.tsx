@@ -23,8 +23,6 @@ import NestedFilterMenu from '@/app/components/nested-filter-menu'
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 
-const server = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3003'
-
 interface Brand {
   id: number
   name: string
@@ -121,7 +119,7 @@ export default function AddProductsToList() {
         setIsLoading(true)
         
         // Fetch brands
-        const brandsResponse = await fetch('http://localhost:3003/api/brands')
+        const brandsResponse = await fetch(`${process.env.API_URL}/api/brands`)
         if (!brandsResponse.ok) throw new Error('Failed to fetch brands')
         const brandsData = await brandsResponse.json()
         const brandsMap: Record<number, Brand> = {}
@@ -131,7 +129,7 @@ export default function AddProductsToList() {
         setBrands(brandsMap)
 
         // Fetch sizes
-        const sizesResponse = await fetch('http://localhost:3003/api/sizes')
+        const sizesResponse = await fetch(`${process.env.API_URL}/api/sizes`)
         if (!sizesResponse.ok) throw new Error('Failed to fetch sizes')
         const sizesData = await sizesResponse.json()
         const sizesMap: Record<number, Size> = {}
@@ -149,7 +147,7 @@ export default function AddProductsToList() {
           searchParams.set('priceRanges', JSON.stringify(priceRanges))
         }
 
-        const productsResponse = await fetch(`http://localhost:3003/api/products?${searchParams.toString()}`)
+        const productsResponse = await fetch(`${process.env.API_URL}/api/products?${searchParams.toString()}`)
         if (!productsResponse.ok) throw new Error('Failed to fetch products')
         const productsData = await productsResponse.json()
         
@@ -162,7 +160,7 @@ export default function AddProductsToList() {
             productsData.products.map(async (product: Product) => {
               try {
                 const photoResponse = await fetch(
-                  `http://localhost:3003/api/products/photos/${product.article_code}/${product.variant_code}/main`
+                  `${process.env.API_URL}/api/products/photos/${product.article_code}/${product.variant_code}/main`
                 )
                 if (photoResponse.ok) {
                   const photoData = await photoResponse.json()
@@ -200,7 +198,7 @@ export default function AddProductsToList() {
           setParameters(allParameters)
 
           // Fetch delle disponibilità
-          const availabilityResponse = await fetch(`${server}/api/product-availability`)
+          const availabilityResponse = await fetch(`${process.env.API_URL}/api/product-availability`)
           if (!availabilityResponse.ok) throw new Error('Failed to fetch availability')
           const availabilityData = await availabilityResponse.json()
           
@@ -231,7 +229,7 @@ export default function AddProductsToList() {
         }
 
         // Fetch price list details
-        const listResponse = await fetch(`http://localhost:3003/api/price-lists/${params.id}`)
+        const listResponse = await fetch(`${process.env.API_URL}/api/price-lists/${params.id}`)
         if (!listResponse.ok) throw new Error('Failed to fetch price list')
         const listData = await listResponse.json()
         setListName(listData.name || 'Listino')
@@ -258,7 +256,7 @@ export default function AddProductsToList() {
   useEffect(() => {
     const fetchPriceLists = async () => {
       try {
-        const response = await fetch('http://localhost:3003/api/price-lists')
+        const response = await fetch(`${process.env.API_URL}/api/price-lists`)
         if (!response.ok) throw new Error('Failed to fetch price lists')
         const data = await response.json()
         setPriceLists(data)
@@ -278,7 +276,7 @@ export default function AddProductsToList() {
 
   const handleSave = async (productId: number) => {
     try {
-      const response = await fetch(`http://localhost:3003/api/price-lists/${params.id}/products`, {
+      const response = await fetch(`${process.env.API_URL}/api/price-lists/${params.id}/products`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -431,7 +429,7 @@ export default function AddProductsToList() {
       }
 
       try {
-        const response = await fetch(`http://localhost:3003/api/price-lists/${selectedPriceList}/prices`)
+        const response = await fetch(`${process.env.API_URL}/api/price-lists/${selectedPriceList}/prices`)
         if (!response.ok) throw new Error('Failed to fetch prices')
         const data = await response.json()
         
@@ -442,7 +440,7 @@ export default function AddProductsToList() {
         setOtherListPrices(pricesMap)
 
         // Ottieni il nome del listino
-        const listResponse = await fetch(`http://localhost:3003/api/price-lists/${selectedPriceList}`)
+        const listResponse = await fetch(`${process.env.API_URL}/api/price-lists/${selectedPriceList}`)
         if (listResponse.ok) {
           const listData = await listResponse.json()
           setSelectedListName(listData.name)
@@ -478,7 +476,7 @@ export default function AddProductsToList() {
                 price: selectedProducts[id] || 0
               }))
               
-              fetch('http://localhost:3003/api/price-lists/prices', {
+              fetch(`${process.env.API_URL}/api/price-lists/prices`, {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',

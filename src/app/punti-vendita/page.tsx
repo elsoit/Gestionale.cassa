@@ -123,22 +123,22 @@ function EntryForm({
   // Fetch delle opzioni per i punti vendita
   const { data: channels } = useQuery({
     queryKey: ['channels'],
-    queryFn: () => fetchData('http://localhost:3003/api/channels')
+    queryFn: () => fetchData(`${process.env.API_URL}/api/channels`)
   });
 
   const { data: warehouses } = useQuery({
     queryKey: ['warehouses'],
-    queryFn: () => fetchData('http://localhost:3003/api/warehouses')
+    queryFn: () => fetchData(`${process.env.API_URL}/api/warehouses`)
   });
 
   const { data: statuses } = useQuery({
     queryKey: ['statuses'],
-    queryFn: () => fetchData('http://localhost:3003/api/statuses/field/Stores')
+    queryFn: () => fetchData(`${process.env.API_URL}/api/statuses/field/Stores`)
   });
 
   const { data: addresses } = useQuery({
     queryKey: ['addresses'],
-    queryFn: () => fetchData('http://localhost:3003/api/addresses')
+    queryFn: () => fetchData(`${process.env.API_URL}/api/addresses`)
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -283,12 +283,12 @@ export default function PuntiVendita() {
 
   const { data, error, isLoading } = useQuery({
     queryKey: ['puntiVendita'],
-    queryFn: () => fetchData('http://localhost:3003/api/punti-vendita')
+    queryFn: () => fetchData(`${process.env.API_URL}/api/punti-vendita`)
   });
 
   const createMutation = useMutation({
     mutationFn: async (newData: any) => {
-      const response = await fetch('http://localhost:3003/api/punti-vendita', {
+      const response = await fetch(`${process.env.API_URL}/api/punti-vendita`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -316,7 +316,7 @@ export default function PuntiVendita() {
 
   const updateMutation = useMutation({
     mutationFn: async (updatedData: any) => {
-      const response = await fetch(`http://localhost:3003/api/punti-vendita/${updatedData.id}`, {
+      const response = await fetch(`${process.env.API_URL}/api/punti-vendita/${updatedData.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -344,7 +344,7 @@ export default function PuntiVendita() {
 
   const deleteMutation = useMutation({
     mutationFn: (item: any) => {
-      return fetch(`http://localhost:3003/api/punti-vendita/${item.id}`, {
+      return fetch(`${process.env.API_URL}/api/punti-vendita/${item.id}`, {
         method: 'DELETE',
       });
     },

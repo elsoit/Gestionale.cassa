@@ -62,7 +62,7 @@ export default function ListsPage() {
 
   const fetchPriceLists = async () => {
     try {
-      const response = await fetch('http://localhost:3003/api/price-lists')
+      const response = await fetch(`${process.env.API_URL}/api/price-lists`)
       const data = await response.json()
       setPriceLists(data)
     } catch (error) {
@@ -73,7 +73,7 @@ export default function ListsPage() {
 
   const fetchDiscountLists = async () => {
     try {
-      const response = await fetch('http://localhost:3003/api/discount-lists')
+      const response = await fetch(`${process.env.API_URL}/api/discount-lists`)
       const data = await response.json()
       setDiscountLists(data)
     } catch (error) {
@@ -113,7 +113,7 @@ export default function ListsPage() {
   const handleCreateList = async () => {
     try {
       const endpoint = activeTab === 'prices' ? 'price-lists' : 'discount-lists'
-      const response = await fetch(`http://localhost:3003/api/${endpoint}`, {
+      const response = await fetch(`${process.env.API_URL}/api/${endpoint}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -147,7 +147,7 @@ export default function ListsPage() {
 
     try {
       const endpoint = activeTab === 'prices' ? 'price-lists' : 'discount-lists'
-      const response = await fetch(`http://localhost:3003/api/${endpoint}/${id}`, {
+      const response = await fetch(`${process.env.API_URL}/api/${endpoint}/${id}`, {
         method: 'DELETE',
       })
 

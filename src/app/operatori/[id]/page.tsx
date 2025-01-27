@@ -13,8 +13,6 @@ import Link from 'next/link'
 import { toast } from 'sonner'
 import AddressForm from '../components/AddressForm'
 
-const server = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3003';
-
 interface Address {
   id?: number
   name?: string
@@ -107,7 +105,7 @@ export default function OperatorePage() {
     queryKey: ['operatore', params.id],
     queryFn: async () => {
       if (isNew) return null
-      const response = await fetch(`${server}/api/operators/${params.id}`)
+      const response = await fetch(`${process.env.API_URL}/api/operators/${params.id}`)
       if (!response.ok) throw new Error('Network response was not ok')
       return response.json()
     },
@@ -119,7 +117,7 @@ export default function OperatorePage() {
     queryKey: ['indirizzo-residenza', operatoreData?.indirizzo_residenza_id],
     queryFn: async () => {
       if (!operatoreData?.indirizzo_residenza_id) return null
-      const response = await fetch(`${server}/api/addresses/${operatoreData.indirizzo_residenza_id}`)
+      const response = await fetch(`${process.env.API_URL}/api/addresses/${operatoreData.indirizzo_residenza_id}`)
       if (!response.ok) throw new Error('Network response was not ok')
       return response.json()
     },
@@ -130,7 +128,7 @@ export default function OperatorePage() {
     queryKey: ['indirizzo-domicilio', operatoreData?.indirizzo_domicilio_id],
     queryFn: async () => {
       if (!operatoreData?.indirizzo_domicilio_id) return null
-      const response = await fetch(`${server}/api/addresses/${operatoreData.indirizzo_domicilio_id}`)
+      const response = await fetch(`${process.env.API_URL}/api/addresses/${operatoreData.indirizzo_domicilio_id}`)
       if (!response.ok) throw new Error('Network response was not ok')
       return response.json()
     },
@@ -197,7 +195,7 @@ export default function OperatorePage() {
     }
 
     try {
-      const response = await fetch(`${server}/api/addresses/search?q=${searchTerm}`)
+      const response = await fetch(`${process.env.API_URL}/api/addresses/search?q=${searchTerm}`)
       if (!response.ok) throw new Error('Network response was not ok')
       const data = await response.json()
       setSuggestedAddresses(data)
@@ -226,7 +224,7 @@ export default function OperatorePage() {
     }
 
     // Se non esiste, crea nuovo indirizzo
-    const response = await fetch(`${server}/api/addresses`, {
+    const response = await fetch(`${process.env.API_URL}/api/addresses`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(address)
@@ -267,8 +265,8 @@ export default function OperatorePage() {
       }
 
       const url = isNew 
-        ? `${server}/api/operators`
-        : `${server}/api/operators/${params.id}`
+        ? `${process.env.API_URL}/api/operators`
+        : `${process.env.API_URL}/api/operators/${params.id}`
 
       console.log('----------------------')
       console.log('DATI OPERATORE INVIATI:')

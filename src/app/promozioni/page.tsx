@@ -209,7 +209,7 @@ export default function PromozioniPage() {
 
   const fetchPromotions = async () => {
     try {
-      const response = await fetch('http://localhost:3003/api/promotions');
+      const response = await fetch(`${process.env.API_URL}/api/promotions`);
       if (!response.ok) throw new Error('Errore nel caricamento delle promozioni');
       const data = await response.json();
       setPromotions(data);
@@ -224,7 +224,7 @@ export default function PromozioniPage() {
 
   const fetchParameters = async () => {
     try {
-      const response = await fetch('http://localhost:3003/api/parameters');
+      const response = await fetch(`${process.env.API_URL}/api/parameters`);
       if (!response.ok) throw new Error('Errore nel caricamento dei parametri');
       const data = await response.json();
       setParameters(data);
@@ -235,7 +235,7 @@ export default function PromozioniPage() {
 
   const fetchBrands = async () => {
     try {
-      const response = await fetch('http://localhost:3003/api/brands');
+      const response = await fetch(`${process.env.API_URL}/api/brands`);
       if (!response.ok) throw new Error('Errore nel caricamento dei brand');
       const data = await response.json();
       setBrands(data);
@@ -246,7 +246,7 @@ export default function PromozioniPage() {
 
   const fetchSizes = async () => {
     try {
-      const response = await fetch('http://localhost:3003/api/sizes');
+      const response = await fetch(`${process.env.API_URL}/api/sizes`);
       if (!response.ok) throw new Error('Errore nel caricamento delle taglie');
       const data = await response.json();
       setSizes(data);
@@ -257,7 +257,7 @@ export default function PromozioniPage() {
 
   const fetchAttributesByParameterId = async (parameterId: number) => {
     try {
-      const response = await fetch(`http://localhost:3003/api/attributes/parameter/${parameterId}`);
+      const response = await fetch(`${process.env.API_URL}/api/attributes/parameter/${parameterId}`);
       if (!response.ok) throw new Error('Errore nel caricamento degli attributi');
       const data = await response.json();
       setAttributes(data);
@@ -297,7 +297,7 @@ export default function PromozioniPage() {
     if (!confirm('Sei sicuro di voler eliminare questa promozione?')) return;
 
     try {
-      const response = await fetch(`http://localhost:3003/api/promotions/${id}`, {
+      const response = await fetch(`${process.env.API_URL}/api/promotions/${id}`, {
         method: 'DELETE',
       });
 
@@ -320,7 +320,7 @@ export default function PromozioniPage() {
 
   const handleCreatePromotion = async () => {
     try {
-      const response = await fetch('http://localhost:3003/api/promotions', {
+      const response = await fetch(`${process.env.API_URL}/api/promotions`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -651,7 +651,7 @@ export default function PromozioniPage() {
     console.log('Query generata:', query);
 
     try {
-      const response = await fetch(`http://localhost:3003/api/promotions/${selectedPromotionId}`, {
+      const response = await fetch(`${process.env.API_URL}/api/promotions/${selectedPromotionId}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -771,8 +771,8 @@ export default function PromozioniPage() {
   const handleSavePromotion = async (promotionData: Partial<PromotionData>) => {
     try {
       const url = promotionData.id 
-        ? `http://localhost:3003/api/promotions/${promotionData.id}`
-        : 'http://localhost:3003/api/promotions';
+        ? `${process.env.API_URL}/api/promotions/${promotionData.id}`
+        : `${process.env.API_URL}/api/promotions`;
       
       const method = promotionData.id ? 'PUT' : 'POST';
 

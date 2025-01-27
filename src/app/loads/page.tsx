@@ -76,13 +76,13 @@ export default function LoadsPage() {
 
   const fetchLoads = async () => {
     try {
-      const response = await fetch('http://localhost:3003/api/loads/')
+      const response = await fetch(`${process.env.API_URL}/api/loads/`)
       if (!response.ok) throw new Error('Failed to fetch loads')
       const data = await response.json()
       
       // Fetch totals for each load
       const loadsWithTotals = await Promise.all(data.map(async (load: Load) => {
-        const productsResponse = await fetch(`http://localhost:3003/api/load-products/load/${load.id}`)
+        const productsResponse = await fetch(`${process.env.API_URL}/api/load-products/load/${load.id}`)
         if (!productsResponse.ok) throw new Error(`Failed to fetch products for load ${load.id}`)
         const products = await productsResponse.json()
         
@@ -113,7 +113,7 @@ export default function LoadsPage() {
       setSupplies([])
       /* 
       Quando l'endpoint sarà disponibile, riattiva questo codice:
-      const response = await fetch('http://localhost:3003/api/supplies/')
+      const response = await fetch(`${process.env.API_URL}/api/supplies/`)
       if (!response.ok) throw new Error('Failed to fetch supplies')
       const data = await response.json()
       setSupplies(data)
@@ -126,7 +126,7 @@ export default function LoadsPage() {
 
   const fetchStatuses = async () => {
     try {
-      const response = await fetch('http://localhost:3003/api/statuses/')
+      const response = await fetch(`${process.env.API_URL}/api/statuses/`)
       if (!response.ok) throw new Error('Failed to fetch statuses')
       const data = await response.json()
       setStatuses(data)
@@ -142,7 +142,7 @@ export default function LoadsPage() {
 
   const fetchWarehouses = async () => {
     try {
-      const response = await fetch('http://localhost:3003/api/warehouses/')
+      const response = await fetch(`${process.env.API_URL}/api/warehouses/`)
       if (!response.ok) throw new Error('Failed to fetch warehouses')
       const data = await response.json()
       setWarehouses(data)
@@ -181,7 +181,7 @@ export default function LoadsPage() {
         supply_id: newLoad.supply_id ? parseInt(newLoad.supply_id.toString()) : null
       };
 
-      const response = await fetch('http://localhost:3003/api/loads/', {
+      const response = await fetch(`${process.env.API_URL}/api/loads/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -217,7 +217,7 @@ export default function LoadsPage() {
 
     try {
       setIsConfirming(loadId)
-      const response = await fetch(`http://localhost:3003/api/loads/${loadId}/confirm`, {
+      const response = await fetch(`${process.env.API_URL}/api/loads/${loadId}/confirm`, {
         method: 'PUT',
       })
 
@@ -249,7 +249,7 @@ export default function LoadsPage() {
 
     try {
       setIsRevoking(loadId)
-      const response = await fetch(`http://localhost:3003/api/loads/${loadId}/revoke`, {
+      const response = await fetch(`${process.env.API_URL}/api/loads/${loadId}/revoke`, {
         method: 'POST',
       })
 
@@ -281,7 +281,7 @@ export default function LoadsPage() {
 
     try {
       setIsDeleting(loadId)
-      const response = await fetch(`http://localhost:3003/api/loads/${loadId}/delete`, {
+      const response = await fetch(`${process.env.API_URL}/api/loads/${loadId}/delete`, {
         method: 'POST',
       })
 

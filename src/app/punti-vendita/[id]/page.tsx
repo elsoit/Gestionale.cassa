@@ -89,18 +89,18 @@ function PriceListsTab({ puntoVenditaId }: { puntoVenditaId: string }) {
   // Fetch price lists for this punto vendita
   const { data: connectedLists, isLoading } = useQuery({
     queryKey: ['puntoVenditaPriceLists', puntoVenditaId],
-    queryFn: () => fetchData(`http://localhost:3003/api/punti-vendita-price-list/punto-vendita/${puntoVenditaId}`)
+    queryFn: () => fetchData(`${process.env.API_URL}/api/punti-vendita-price-list/punto-vendita/${puntoVenditaId}`)
   });
 
   // Fetch all available price lists
   const { data: allPriceLists } = useQuery({
     queryKey: ['priceLists'],
-    queryFn: () => fetchData('http://localhost:3003/api/price-lists')
+    queryFn: () => fetchData(`${process.env.API_URL}/api/price-lists`)
   });
 
   const createMutation = useMutation({
     mutationFn: async (newData: any) => {
-      const response = await fetch('http://localhost:3003/api/punti-vendita-price-list', {
+      const response = await fetch(`${process.env.API_URL}/api/punti-vendita-price-list`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -128,7 +128,7 @@ function PriceListsTab({ puntoVenditaId }: { puntoVenditaId: string }) {
 
   const toggleMutation = useMutation({
     mutationFn: async ({ id, isActive }: { id: number, isActive: boolean }) => {
-      const response = await fetch(`http://localhost:3003/api/punti-vendita-price-list/${id}/toggle`, {
+      const response = await fetch(`${process.env.API_URL}/api/punti-vendita-price-list/${id}/toggle`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ is_active: !isActive })
@@ -154,7 +154,7 @@ function PriceListsTab({ puntoVenditaId }: { puntoVenditaId: string }) {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
-      const response = await fetch(`http://localhost:3003/api/punti-vendita-price-list/${id}`, {
+      const response = await fetch(`${process.env.API_URL}/api/punti-vendita-price-list/${id}`, {
         method: 'DELETE'
       });
       if (!response.ok) throw new Error('Network response was not ok');
@@ -312,18 +312,18 @@ function DiscountListsTab({ puntoVenditaId }: { puntoVenditaId: string }) {
   // Fetch discount lists for this punto vendita
   const { data: connectedLists, isLoading } = useQuery({
     queryKey: ['puntoVenditaDiscountLists', puntoVenditaId],
-    queryFn: () => fetchData(`http://localhost:3003/api/punti-vendita-discount-list/punto-vendita/${puntoVenditaId}`)
+    queryFn: () => fetchData(`${process.env.API_URL}/api/punti-vendita-discount-list/punto-vendita/${puntoVenditaId}`)
   });
 
   // Fetch all available discount lists
   const { data: allDiscountLists } = useQuery({
     queryKey: ['discountLists'],
-    queryFn: () => fetchData('http://localhost:3003/api/discount-lists')
+    queryFn: () => fetchData(`${process.env.API_URL}/api/discount-lists`)
   });
 
   const createMutation = useMutation({
     mutationFn: async (newData: any) => {
-      const response = await fetch('http://localhost:3003/api/punti-vendita-discount-list', {
+      const response = await fetch(`${process.env.API_URL}/api/punti-vendita-discount-list`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -351,7 +351,7 @@ function DiscountListsTab({ puntoVenditaId }: { puntoVenditaId: string }) {
 
   const toggleMutation = useMutation({
     mutationFn: async ({ id, isActive }: { id: number, isActive: boolean }) => {
-      const response = await fetch(`http://localhost:3003/api/punti-vendita-discount-list/${id}/toggle`, {
+      const response = await fetch(`${process.env.API_URL}/api/punti-vendita-discount-list/${id}/toggle`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ is_active: !isActive })
@@ -377,7 +377,7 @@ function DiscountListsTab({ puntoVenditaId }: { puntoVenditaId: string }) {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
-      const response = await fetch(`http://localhost:3003/api/punti-vendita-discount-list/${id}`, {
+      const response = await fetch(`${process.env.API_URL}/api/punti-vendita-discount-list/${id}`, {
         method: 'DELETE'
       });
       if (!response.ok) throw new Error('Network response was not ok');
@@ -535,18 +535,18 @@ function PromotionsTab({ puntoVenditaId }: { puntoVenditaId: string }) {
   // Fetch promotions for this punto vendita
   const { data: connectedPromotions, isLoading } = useQuery({
     queryKey: ['puntoVenditaPromotions', puntoVenditaId],
-    queryFn: () => fetchData(`http://localhost:3003/api/punti-vendita-promotions/punto-vendita/${puntoVenditaId}`)
+    queryFn: () => fetchData(`${process.env.API_URL}/api/punti-vendita-promotions/punto-vendita/${puntoVenditaId}`)
   });
 
   // Fetch all available promotions
   const { data: allPromotions } = useQuery({
     queryKey: ['promotions'],
-    queryFn: () => fetchData('http://localhost:3003/api/promotions')
+    queryFn: () => fetchData(`${process.env.API_URL}/api/promotions`)
   });
 
   const createMutation = useMutation({
     mutationFn: async (newData: any) => {
-      const response = await fetch('http://localhost:3003/api/punti-vendita-promotions', {
+      const response = await fetch(`${process.env.API_URL}/api/punti-vendita-promotions`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -574,7 +574,7 @@ function PromotionsTab({ puntoVenditaId }: { puntoVenditaId: string }) {
 
   const toggleMutation = useMutation({
     mutationFn: async ({ id, isActive }: { id: number, isActive: boolean }) => {
-      const response = await fetch(`http://localhost:3003/api/punti-vendita-promotions/${id}/toggle`, {
+      const response = await fetch(`${process.env.API_URL}/api/punti-vendita-promotions/${id}/toggle`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ is_active: !isActive })
@@ -600,7 +600,7 @@ function PromotionsTab({ puntoVenditaId }: { puntoVenditaId: string }) {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
-      const response = await fetch(`http://localhost:3003/api/punti-vendita-promotions/${id}`, {
+      const response = await fetch(`${process.env.API_URL}/api/punti-vendita-promotions/${id}`, {
         method: 'DELETE'
       });
       if (!response.ok) throw new Error('Network response was not ok');
@@ -761,24 +761,24 @@ function StoreOperatorsTab({ puntoVenditaId }: { puntoVenditaId: string }) {
   // Fetch store operators
   const { data: storeOperators, isLoading } = useQuery({
     queryKey: ['storeOperators', puntoVenditaId],
-    queryFn: () => fetchData(`http://localhost:3003/api/operators/store/${puntoVenditaId}`)
+    queryFn: () => fetchData(`${process.env.API_URL}/api/operators/store/${puntoVenditaId}`)
   })
 
   // Fetch available operators
   const { data: availableOperators } = useQuery({
     queryKey: ['availableOperators', puntoVenditaId],
-    queryFn: () => fetchData(`http://localhost:3003/api/operators/available/${puntoVenditaId}`)
+    queryFn: () => fetchData(`${process.env.API_URL}/api/operators/available/${puntoVenditaId}`)
   })
 
   // Fetch role types
   const { data: roleTypes } = useQuery({
     queryKey: ['roleTypes'],
-    queryFn: () => fetchData('http://localhost:3003/api/operators/roles/types')
+    queryFn: () => fetchData(`${process.env.API_URL}/api/operators/roles/types`)
   })
 
   const createMutation = useMutation({
     mutationFn: async (newData: any) => {
-      const response = await fetch('http://localhost:3003/api/operators/store', {
+      const response = await fetch(`${process.env.API_URL}/api/operators/store`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -811,7 +811,7 @@ function StoreOperatorsTab({ puntoVenditaId }: { puntoVenditaId: string }) {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
-      const response = await fetch(`http://localhost:3003/api/operators/store/${id}`, {
+      const response = await fetch(`${process.env.API_URL}/api/operators/store/${id}`, {
         method: 'DELETE'
       })
       if (!response.ok) throw new Error('Network response was not ok')
@@ -836,7 +836,7 @@ function StoreOperatorsTab({ puntoVenditaId }: { puntoVenditaId: string }) {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, role }: { id: number, role: string }) => {
-      const response = await fetch(`http://localhost:3003/api/operators/store/${id}`, {
+      const response = await fetch(`${process.env.API_URL}/api/operators/store/${id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -1038,7 +1038,7 @@ function StoreOperatorsTab({ puntoVenditaId }: { puntoVenditaId: string }) {
 export default function PuntoVenditaDetail({ params }: { params: { id: string } }) {
   const { data: puntoVendita, isLoading } = useQuery({
     queryKey: ['puntoVendita', params.id],
-    queryFn: () => fetchData(`http://localhost:3003/api/punti-vendita/${params.id}`)
+    queryFn: () => fetchData(`${process.env.API_URL}/api/punti-vendita/${params.id}`)
   });
 
   if (isLoading) return <div>Caricamento...</div>;

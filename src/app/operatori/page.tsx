@@ -16,8 +16,6 @@ import { it } from 'date-fns/locale'
 import { Plus, Pencil, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 
-const server = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3003';
-
 // Funzione per gestire in modo sicuro il parsing delle date
 const parseDateSafe = (dateString: string | null): Date | null => {
   if (!dateString || dateString === 'null') return null
@@ -59,9 +57,7 @@ export default function OperatoriPage() {
   const { data: operatori = [], isLoading, error } = useQuery({
     queryKey: ['operatori'],
     queryFn: async () => {
-      const response = await fetch(`${server}/api/operators`
-        
-      )
+      const response = await fetch(`${process.env.API_URL}/api/operators`)
       if (!response.ok) throw new Error('Network response was not ok')
       return response.json()
     }
