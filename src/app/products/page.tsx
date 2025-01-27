@@ -21,6 +21,7 @@ import NestedFilterMenu from '../components/nested-filter-menu'
 import { useRouter, useSearchParams } from 'next/navigation'
 import PhotoManagementDialog from '../components/PhotoManagementDialog'
 import Image from 'next/image'
+import ProductPhotosManagementDialog from '../components/ProductPhotosManagementDialog'
 
 interface Brand {
   id: number;
@@ -82,11 +83,16 @@ interface Product {
     url: string;
     main: boolean;
   };
+  photos: {
+    id: number;
+    url: string;
+    main: boolean;
+  }[];
 }
 
 interface PriceRange {
-  min: number;
-  max: number;
+  min: number | undefined;
+  max: number | undefined;
 }
 
 interface PriceRanges {
@@ -243,25 +249,44 @@ const toBase64 = (str: string) =>
     : window.btoa(str);
 
 // Modifica il componente dell'immagine nella tabella
-const ProductImage = ({ url, alt }: { url: string; alt: string }) => {
+const ProductImage = ({ 
+  url, 
+  alt, 
+  article_code, 
+  variant_code, 
+  onImageClick 
+}: { 
+  url?: string; 
+  alt: string; 
+  article_code: string; 
+  variant_code: string; 
+  onImageClick: (article_code: string, variant_code: string) => void;
+}) => {
   return (
-    <div className="relative w-12 h-12">
-      <Image
-        src={url}
-        alt={alt}
-        fill
-        loader={imageLoader}
-        className="object-cover rounded-md"
-        sizes="48px"
-        placeholder="blur"
-        blurDataURL={`data:image/svg+xml;base64,${toBase64(shimmer(48, 48))}`}
-        priority={false}
-        loading="lazy"
-        onError={(e) => {
-          const target = e.target as HTMLImageElement;
-          target.src = '/images/placeholder-product.png';
-        }}
-      />
+    <div 
+      className="relative w-12 h-12 cursor-pointer bg-gray-100 rounded-md flex items-center justify-center overflow-hidden" 
+      onClick={() => onImageClick(article_code, variant_code)}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          onImageClick(article_code, variant_code);
+        }
+      }}
+    >
+      {url ? (
+        <Image
+          src={url}
+          alt={alt}
+          fill
+          className="object-cover rounded-md"
+          sizes="48px"
+          priority={false}
+          loading="lazy"
+        />
+      ) : (
+        <Camera className="w-6 h-6 text-gray-400" />
+      )}
     </div>
   );
 };
@@ -291,13 +316,13 @@ function TableContent() {
     try {
       const savedPriceRanges = searchParams.get('priceRanges')
       return savedPriceRanges ? JSON.parse(savedPriceRanges) : {
-        wholesale_price: {},
-        retail_price: {}
+        wholesale_price: { min: undefined, max: undefined },
+        retail_price: { min: undefined, max: undefined }
       }
     } catch {
       return {
-        wholesale_price: {},
-        retail_price: {}
+        wholesale_price: { min: undefined, max: undefined },
+        retail_price: { min: undefined, max: undefined }
       }
     }
   })
@@ -327,19 +352,42 @@ function TableContent() {
   const { toast } = useToast()
   const [photoDialogOpen, setPhotoDialogOpen] = useState(false);
   const [selectedPhotoProduct, setSelectedPhotoProduct] = useState<{ article_code: string; variant_code: string } | null>(null);
+  const [isPhotosManagementOpen, setIsPhotosManagementOpen] = useState(false);
+  const [isPhotoGalleryOpen, setIsPhotoGalleryOpen] = useState(false);
+  const [selectedGalleryProduct, setSelectedGalleryProduct] = useState<{ article_code: string; variant_code: string } | null>(null);
 
   // Funzione per aggiornare l'URL con i filtri correnti
   const updateUrlParams = (newSearchTerm?: string, newFilters?: Filters, newAvailability?: AvailabilityFilter, newPriceRanges?: PriceRanges) => {
     const params = new URLSearchParams()
     
-    if (newSearchTerm) params.set('search', newSearchTerm)
-    if (newFilters && Object.keys(newFilters).length > 0) params.set('filters', JSON.stringify(newFilters))
-    if (newAvailability && Object.keys(newAvailability).length > 0) params.set('availability', JSON.stringify(newAvailability))
-    if (newPriceRanges && (Object.keys(newPriceRanges.wholesale_price).length > 0 || Object.keys(newPriceRanges.retail_price).length > 0)) {
-      params.set('priceRanges', JSON.stringify(newPriceRanges))
+    // Aggiungi i parametri solo se hanno valori significativi
+    if (newSearchTerm?.trim()) {
+      params.set('search', newSearchTerm)
     }
     
-    router.push(`?${params.toString()}`, { scroll: false })
+    if (newFilters && Object.keys(newFilters).length > 0) {
+      // Verifica se ci sono array di filtri non vuoti
+      const hasNonEmptyFilters = Object.values(newFilters).some(arr => arr.length > 0);
+      if (hasNonEmptyFilters) {
+        params.set('filters', JSON.stringify(newFilters))
+      }
+    }
+    
+    if (newAvailability && Object.keys(newAvailability).length > 0 && newAvailability.type) {
+      params.set('availability', JSON.stringify(newAvailability))
+    }
+    
+    if (newPriceRanges) {
+      const hasWholesalePrice = Object.keys(newPriceRanges.wholesale_price || {}).length > 0;
+      const hasRetailPrice = Object.keys(newPriceRanges.retail_price || {}).length > 0;
+      if (hasWholesalePrice || hasRetailPrice) {
+        params.set('priceRanges', JSON.stringify(newPriceRanges))
+      }
+    }
+    
+    // Se non ci sono parametri, pulisci l'URL
+    const newUrl = params.toString() ? `?${params.toString()}` : '/products';
+    router.push(newUrl, { scroll: false })
   }
 
   // Aggiorna i filtri e l'URL quando cambiano i valori
@@ -381,8 +429,9 @@ function TableContent() {
   }, [searchTerm])
 
   const fetchData = async () => {
-    setIsLoading(true)
-    setError(null)
+    setIsLoading(true);
+    setError(null);
+    
     try {
       const [productResponse, brandData, sizeData, sizeGroupData, statusData, availabilityData] = await Promise.all([
         fetch(`${server}/api/products?${new URLSearchParams({
@@ -401,34 +450,72 @@ function TableContent() {
         fetch(`${server}/api/product-availability`, { mode: 'cors', credentials: 'include' }).then(res => res.json())
       ]);
 
-      console.log('Products Response:', productResponse);
-      
       const productData = Array.isArray(productResponse.products) ? productResponse.products : [];
-
-      // Fetch main photos for all products
-      const productsWithPhotos = await Promise.all(productData.map(async (product: Product) => {
-        const mainPhoto = await fetchMainPhoto(product.article_code, product.variant_code);
-        return {
-          ...product,
-          main_photo: mainPhoto
-        };
-      }));
-
-      const availabilityMap = availabilityData.reduce((acc: {[key: number]: number}, item: ProductAvailability) => {
+      
+      // Crea la mappa delle disponibilità prima di tutto
+      const availabilityMap = availabilityData.reduce((acc: { [key: number]: number }, item: ProductAvailability) => {
         acc[item.product_id] = (acc[item.product_id] || 0) + item.quantity;
         return acc;
       }, {});
 
-      const productsWithAvailability = productsWithPhotos.map((product: Product) => ({
-        ...product,
-        total_availability: availabilityMap[product.id] || 0
-      }));
+      let productsWithPhotos: Product[] = [];
 
-      setProducts(productsWithAvailability);
-      setBrands(brandData)
-      setSizes(sizeData)
-      setSizeGroups(sizeGroupData)
-      setStatuses(statusData)
+      try {
+        // Fetch photos for all products in one call
+        const photosResponse = await fetch(`${server}/api/products/photos/bulk`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            products: productData.map((product: Product) => ({
+              article_code: product.article_code,
+              variant_code: product.variant_code
+            }))
+          }),
+          mode: 'cors',
+          credentials: 'include'
+        });
+
+        if (!photosResponse.ok) {
+          throw new Error(`Error fetching photos: ${photosResponse.statusText}`);
+        }
+
+        const photosData = await photosResponse.json();
+
+        // Combine products with their photos
+        productsWithPhotos = productData.map((product: Product) => {
+          const key = `${product.article_code.toLowerCase()}-${product.variant_code.toLowerCase()}`;
+          const productPhotos = photosData[key] || [];
+          return {
+            ...product,
+            photos: productPhotos,
+            main_photo: productPhotos[0], // La prima foto è quella principale grazie all'ORDER BY main DESC
+            total_availability: availabilityMap[product.id] || 0
+          };
+        });
+      } catch (photoError) {
+        console.error('Error fetching or processing photos:', photoError);
+        toast({
+          title: "Errore",
+          description: "Errore nel caricamento delle foto dei prodotti",
+          variant: "destructive"
+        });
+        
+        // Se c'è un errore con le foto, continua con i prodotti senza foto
+        productsWithPhotos = productData.map((product: Product) => ({
+          ...product,
+          photos: [],
+          main_photo: null,
+          total_availability: availabilityMap[product.id] || 0
+        }));
+      }
+
+      setProducts(productsWithPhotos);
+      setBrands(brandData);
+      setSizes(sizeData);
+      setSizeGroups(sizeGroupData);
+      setStatuses(statusData);
 
       // Combina i parametri dall'API con quelli aggiuntivi (Brand, Taglie, Stato)
       const allParameters = [
@@ -460,13 +547,18 @@ function TableContent() {
       ];
       
       setParameters(allParameters);
-    } catch (e) {
-      setError('Failed to fetch data. Please try again.')
-      console.error('Fetch error:', e)
+    } catch (error) {
+      console.error('Error fetching data:', error);
+      setError('Errore nel caricamento dei dati');
+      toast({
+        title: "Errore",
+        description: "Errore nel caricamento dei dati",
+        variant: "destructive"
+      });
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   useEffect(() => {
     localStorage.setItem('productFilters', JSON.stringify(filters))
@@ -573,7 +665,7 @@ function TableContent() {
     }
   };
 
-  const handleEdit = async (product: any) => {
+  const handleEdit = async (product: Product) => {
     try {
       console.log('handleEdit called with product:', product);
       
@@ -803,83 +895,227 @@ function TableContent() {
     setPhotoDialogOpen(true);
   };
 
+  const handleImageClick = (article_code: string, variant_code: string) => {
+    setSelectedGalleryProduct({ article_code, variant_code });
+    setIsPhotoGalleryOpen(true);
+  };
+
   return (
     <div className="container mx-auto py-10">
-      <div className="mb-4">
-        <div className="flex justify-between items-center mb-4">
-          <h1 className="text-2xl font-bold">Product List</h1>
+      {/* Header principale */}
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">Gestione Prodotti</h1>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <Label htmlFor="view-mode" className="text-sm text-muted-foreground">Vista Raggruppata</Label>
+            <Switch
+              id="view-mode"
+              checked={isGroupedView}
+              onCheckedChange={handleViewChange}
+            />
+          </div>
+          <Button onClick={handleAdd} className="gap-2">
+            <Plus className="h-4 w-4" /> Nuovo Prodotto
+          </Button>
+        </div>
+      </div>
+
+      {/* Barra degli strumenti */}
+      <div className="bg-muted/30 p-4 rounded-lg mb-6">
+        <div className="flex flex-col gap-4">
+          {/* Riga 1: Ricerca e Filtri */}
           <div className="flex items-center gap-4">
-            <Button onClick={handleAdd} className="gap-2">
-              <Plus className="h-4 w-4" /> Aggiungi Prodotto
-            </Button>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">Vista Raggruppata</span>
-              <Switch
-                checked={isGroupedView}
-                onCheckedChange={handleViewChange}
+            <div className="flex-1">
+              <Input
+                type="search"
+                placeholder="Cerca per codice articolo, variante, brand..."
+                value={searchTerm}
+                onChange={(e) => handleSearchChange(e.target.value)}
+                className="w-full"
               />
             </div>
+            <NestedFilterMenu
+              parameters={parameters}
+              selectedFilters={filters}
+              onFilterChange={handleFiltersChange}
+              priceRanges={priceRanges}
+              onPriceRangeChange={handlePriceRangesChange}
+              availabilityFilter={availabilityFilter}
+              onAvailabilityChange={handleAvailabilityFilterChange}
+            />
+            <Button
+              onClick={() => setIsPhotosManagementOpen(true)}
+              variant="outline"
+              className="gap-2"
+            >
+              <Camera className="w-4 h-4" />
+              Gestione Foto
+            </Button>
           </div>
-        </div>
 
-        <div className="flex items-center gap-2 mb-2">
-          <Input
-            type="search"
-            placeholder="Cerca prodotti..."
-            value={searchTerm}
-            onChange={(e) => handleSearchChange(e.target.value)}
-            className="w-full max-w-sm"
-          />
-          <NestedFilterMenu
-            parameters={parameters}
-            selectedFilters={filters}
-            onFilterChange={handleFiltersChange}
-            priceRanges={priceRanges}
-            onPriceRangeChange={handlePriceRangesChange}
-            availabilityFilter={availabilityFilter}
-            onAvailabilityChange={handleAvailabilityFilterChange}
-          />
-        </div>
+          {/* Riga 2: Filtri attivi */}
+          <div className="flex flex-wrap gap-2">
+            {/* Tag per i filtri degli attributi */}
+            {Object.entries(filters).map(([parameterId, values]) => {
+              const parameter = parameters.find(p => p.id.toString() === parameterId);
+              if (!parameter || values.length === 0) return null;
 
-        {/* Badge dei filtri attivi */}
-        <div className="flex flex-wrap gap-2">
-          {Object.entries(filters).map(([parameterId, values]) => {
-            const parameter = parameters.find(p => p.id.toString() === parameterId);
-            if (!parameter || values.length === 0) return null;
+              const selectedAttributes = parameter.attributes
+                .filter(attr => values.includes(attr.id))
+                .map(attr => attr.name);
 
-            const selectedAttributes = parameter.attributes
-              .filter(attr => values.includes(attr.id))
-              .map(attr => attr.name);
+              const displayCount = 2;
+              const remainingCount = selectedAttributes.length - displayCount;
+              const displayedValues = selectedAttributes.slice(0, displayCount);
 
-            const displayCount = 2;
-            const remainingCount = selectedAttributes.length - displayCount;
-            const displayedValues = selectedAttributes.slice(0, displayCount);
+              return (
+                <Badge
+                  key={parameterId}
+                  variant="secondary"
+                  className="relative group flex items-center gap-2"
+                >
+                  <span>
+                    {parameter.name}: {displayedValues.join(", ")}
+                    {remainingCount > 0 && ` +${remainingCount}`}
+                  </span>
+                  <X
+                    className="h-3 w-3 cursor-pointer hover:text-destructive"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const newFilters = { ...filters };
+                      delete newFilters[parameterId];
+                      setFilters(newFilters);
+                      updateUrlParams(searchTerm, newFilters, availabilityFilter, priceRanges);
+                    }}
+                  />
+                  {remainingCount > 0 && (
+                    <span className="absolute z-50 top-full left-0 mt-1 hidden group-hover:block bg-muted text-muted-foreground p-1.5 rounded-md shadow-md max-w-[200px] text-xs">
+                      {selectedAttributes.join(", ")}
+                    </span>
+                  )}
+                </Badge>
+              );
+            })}
 
-            return (
+            {/* Tag per il filtro disponibilità */}
+            {availabilityFilter.type && (
               <Badge
-                key={parameterId}
                 variant="secondary"
-                className="relative group flex items-center gap-2"
+                className="flex items-center gap-2"
               >
                 <span>
-                  {parameter.name}: {displayedValues.join(", ")}
-                  {remainingCount > 0 && ` +${remainingCount}`}
+                  Disponibilità: {
+                    availabilityFilter.type === 'available' ? 'Disponibile' :
+                    availabilityFilter.type === 'not_available' ? 'Non disponibile' :
+                    availabilityFilter.type === 'greater_than' ? `>${availabilityFilter.value}` :
+                    availabilityFilter.type === 'less_than' ? `<${availabilityFilter.value}` : ''
+                  }
                 </span>
                 <X
-                  className="h-3 w-3 cursor-pointer"
-                  onClick={() => setFilters(prev => ({
-                    ...prev,
-                    [parameterId]: []
-                  }))}
+                  className="h-3 w-3 cursor-pointer hover:text-destructive"
+                  onClick={() => {
+                    setAvailabilityFilter({});
+                    updateUrlParams(searchTerm, filters, {}, priceRanges);
+                  }}
                 />
-                {remainingCount > 0 && (
-                  <span className="absolute z-50 top-full left-0 mt-1 hidden group-hover:block bg-muted text-muted-foreground p-1.5 rounded-md shadow-md max-w-[200px] text-xs">
-                    {selectedAttributes.join(", ")}
-                  </span>
-                )}
               </Badge>
-            );
-          })}
+            )}
+
+            {/* Tag per i filtri dei prezzi */}
+            {priceRanges.wholesale_price.min !== undefined && (
+              <Badge
+                variant="secondary"
+                className="flex items-center gap-2"
+              >
+                <span>
+                  Prezzo Ingrosso: {new Intl.NumberFormat('it-IT', {
+                    style: 'currency',
+                    currency: 'EUR'
+                  }).format(priceRanges.wholesale_price.min)} - {new Intl.NumberFormat('it-IT', {
+                    style: 'currency',
+                    currency: 'EUR'
+                  }).format(priceRanges.wholesale_price.max || 0)}
+                </span>
+                <X
+                  className="h-3 w-3 cursor-pointer hover:text-destructive"
+                  onClick={() => {
+                    const newPriceRanges = {
+                      ...priceRanges,
+                      wholesale_price: { min: undefined, max: undefined }
+                    };
+                    setPriceRanges(newPriceRanges);
+                    updateUrlParams(searchTerm, filters, availabilityFilter, newPriceRanges);
+                  }}
+                />
+              </Badge>
+            )}
+
+            {priceRanges.retail_price.min !== undefined && (
+              <Badge
+                variant="secondary"
+                className="flex items-center gap-2"
+              >
+                <span>
+                  Prezzo Vendita: {new Intl.NumberFormat('it-IT', {
+                    style: 'currency',
+                    currency: 'EUR'
+                  }).format(priceRanges.retail_price.min)} - {new Intl.NumberFormat('it-IT', {
+                    style: 'currency',
+                    currency: 'EUR'
+                  }).format(priceRanges.retail_price.max || 0)}
+                </span>
+                <X
+                  className="h-3 w-3 cursor-pointer hover:text-destructive"
+                  onClick={() => {
+                    const newPriceRanges = {
+                      ...priceRanges,
+                      retail_price: { min: undefined, max: undefined }
+                    };
+                    setPriceRanges(newPriceRanges);
+                    updateUrlParams(searchTerm, filters, availabilityFilter, newPriceRanges);
+                  }}
+                />
+              </Badge>
+            )}
+
+            {/* Tag per cancellare tutti i filtri */}
+            {(() => {
+              // Conta il numero totale di filtri attivi
+              let activeFiltersCount = 0;
+              
+              // Conta i filtri degli attributi
+              activeFiltersCount += Object.keys(filters).length;
+              
+              // Conta il filtro disponibilità
+              if (availabilityFilter.type) activeFiltersCount++;
+              
+              // Conta i filtri dei prezzi
+              if (priceRanges.wholesale_price.min !== undefined) activeFiltersCount++;
+              if (priceRanges.retail_price.min !== undefined) activeFiltersCount++;
+              
+              return activeFiltersCount >= 2 ? (
+                <Badge
+                  variant="destructive"
+                  className="cursor-pointer flex items-center gap-2"
+                  onClick={() => {
+                    setFilters({});
+                    setAvailabilityFilter({});
+                    setPriceRanges({
+                      wholesale_price: { min: undefined, max: undefined },
+                      retail_price: { min: undefined, max: undefined }
+                    });
+                    updateUrlParams(searchTerm, {}, {}, {
+                      wholesale_price: { min: undefined, max: undefined },
+                      retail_price: { min: undefined, max: undefined }
+                    });
+                  }}
+                >
+                  <span>Cancella tutti i filtri</span>
+                  <X className="h-3 w-3" />
+                </Badge>
+              ) : null;
+            })()}
+          </div>
         </div>
       </div>
 
@@ -951,12 +1187,13 @@ function TableContent() {
                   return (
                     <TableRow key={index} className={bgClass}>
                       <TableCell>
-                        {group.main_photo?.url && (
-                          <ProductImage 
-                            url={group.main_photo.url} 
-                            alt={`${group.article_code} ${group.variant_code}`} 
-                          />
-                        )}
+                        <ProductImage 
+                          url={group.main_photo?.url}
+                          alt={`Foto ${group.article_code}`}
+                          article_code={group.article_code}
+                          variant_code={group.variant_code}
+                          onImageClick={handleImageClick}
+                        />
                       </TableCell>
                       <TableCell className="font-medium">
                         {highlightSearchTerm(group.article_code?.toUpperCase() || '', searchTerm)}
@@ -1044,8 +1281,7 @@ function TableContent() {
                                   } else {
                                     const singleProduct = findSingleProduct(group);
                                     if (singleProduct) {
-                                      setSelectedProduct(singleProduct);
-                                      setIsEditDialogOpen(true);
+                                      handleEdit(singleProduct);
                                     }
                                   }
                                 }}
@@ -1154,12 +1390,13 @@ function TableContent() {
                       className={bgClass}
                     >
                       <TableCell>
-                        {product.main_photo?.url && (
-                          <ProductImage 
-                            url={product.main_photo.url} 
-                            alt={`${product.article_code} ${product.variant_code}`} 
-                          />
-                        )}
+                        <ProductImage 
+                          url={product.main_photo?.url}
+                          alt={`Foto ${product.article_code}`}
+                          article_code={product.article_code}
+                          variant_code={product.variant_code}
+                          onImageClick={handleImageClick}
+                        />
                       </TableCell>
                       <TableCell>
                         {highlightSearchTerm(product.article_code?.toUpperCase() || '', searchTerm)}
@@ -1250,7 +1487,7 @@ function TableContent() {
                               Elimina
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => {
-                              setSelectedProduct(product);
+                              setSelectedGalleryProduct(product);
                               setIsAddBarcodePopupOpen(true);
                             }}>
                               <Barcode className="mr-2 h-4 w-4" />
@@ -1282,10 +1519,10 @@ function TableContent() {
         isOpen={isDialogOpen}
         onClose={() => {
           setIsDialogOpen(false);
-          setSelectedProduct(null);
+          setSelectedGalleryProduct(null);
           setIsDuplicating(false);
         }}
-        product={isDuplicating ? selectedProduct : null}
+        product={isDuplicating ? selectedGalleryProduct : null}
         onSave={fetchData}
         refreshData={fetchData}
       />
@@ -1349,6 +1586,25 @@ function TableContent() {
           onOpenChange={setPhotoDialogOpen}
           articleCode={selectedPhotoProduct.article_code}
           variantCode={selectedPhotoProduct.variant_code}
+          onPhotoChange={fetchData}
+        />
+      )}
+      <ProductPhotosManagementDialog
+        open={isPhotosManagementOpen}
+        onOpenChange={setIsPhotosManagementOpen}
+        products={products}
+        onPhotoChange={fetchData}
+      />
+      {selectedGalleryProduct && (
+        <PhotoManagementDialog
+          open={isPhotoGalleryOpen}
+          onOpenChange={(open) => {
+            setIsPhotoGalleryOpen(open);
+            if (!open) setSelectedGalleryProduct(null);
+          }}
+          articleCode={selectedGalleryProduct.article_code}
+          variantCode={selectedGalleryProduct.variant_code}
+          onPhotoChange={fetchData}
         />
       )}
     </div>

@@ -25,7 +25,7 @@ export function TopProducts({ data = [] }: TopProductsProps) {
     labels: data.map(item => item.name),
     datasets: [
       {
-        data: data.map(item => item.revenue),
+        data: data.map(item => item.revenue || 0),
         backgroundColor: [
           'rgba(255, 99, 132, 0.5)',
           'rgba(54, 162, 235, 0.5)',
@@ -76,9 +76,9 @@ export function TopProducts({ data = [] }: TopProductsProps) {
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm font-medium">€{product.revenue.toFixed(2)}</p>
+                  <p className="text-sm font-medium">€{(product.revenue || 0).toFixed(2)}</p>
                   <p className="text-xs text-muted-foreground">
-                    {((product.revenue / data.reduce((sum, p) => sum + p.revenue, 0)) * 100).toFixed(1)}%
+                    {(((product.revenue || 0) / data.reduce((sum, p) => sum + (p.revenue || 0), 0)) * 100).toFixed(1)}%
                   </p>
                 </div>
               </div>

@@ -9,6 +9,16 @@ interface HandleReturnParams {
   deposit: number
   isPartialReturn: boolean
   returnQuantities: { [key: number]: number } // itemId: quantity
+  setIsProcessing: (value: boolean) => void
+  toast: (params: { title: string; description: string; variant?: 'default' | 'destructive' }) => void
+  router: { refresh: () => void }
+}
+
+interface OrderItem {
+  id: number;
+  final_cost: string;
+  quantity: number;
+  // ... altre proprietà esistenti ...
 }
 
 export async function handleReturn({
@@ -17,7 +27,10 @@ export async function handleReturn({
   refundMethod,
   deposit,
   isPartialReturn,
-  returnQuantities
+  returnQuantities,
+  setIsProcessing,
+  toast,
+  router
 }: HandleReturnParams): Promise<void> {
   try {
     console.log('\n=== HANDLE RETURN ===');
@@ -184,7 +197,7 @@ export async function handleReturn({
         });
 
         // 2. Calcola il nuovo totale (somma dei prodotti non resi)
-        const newTotal = orderItems.reduce((total, item) => {
+        const newTotal = orderItems.reduce((total: number, item: OrderItem) => {
           const returnQuantity = returnQuantities[item.id] || 0;
           const remainingQuantity = item.quantity - returnQuantity;
           if (remainingQuantity > 0) {
@@ -280,7 +293,7 @@ export async function handleReturn({
         const oneYearFromNow = new Date(now.getFullYear() + 1, now.getMonth(), now.getDate());
 
         // Calcola il totale degli articoli resi
-        const voucherAmount = orderItems.reduce((total, item) => {
+        const voucherAmount = orderItems.reduce((total: number, item: OrderItem) => {
           const returnQuantity = returnQuantities[item.id] || 0;
           if (returnQuantity > 0) {
             return total + (parseFloat(item.final_cost) * returnQuantity);

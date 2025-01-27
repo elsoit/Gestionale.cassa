@@ -1549,7 +1549,7 @@ export default function LoadDetailPage() {
                     onAddProduct={(products) => {
                       const convertedProducts = products.map(p => ({
                         ...p,
-                        attributes: p.attributes.map(attr => ({
+                        attributes: (p.attributes || []).map(attr => ({
                           ...attr,
                           parameter_description: '',
                           parameter_is_required: false,
@@ -1561,7 +1561,7 @@ export default function LoadDetailPage() {
                     warehouseId={load.warehouse_id}
                     loadProducts={loadProducts.map(p => ({
                       ...p,
-                      attributes: p.attributes.map(attr => ({
+                      attributes: (p.attributes || []).map(attr => ({
                         parameter_id: attr.parameter_id,
                         parameter_name: attr.parameter_name,
                         attribute_id: attr.attribute_id,

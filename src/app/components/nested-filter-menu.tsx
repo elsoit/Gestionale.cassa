@@ -67,25 +67,27 @@ const NestedFilterMenu = ({
   const countActiveFilters = () => {
     let count = 0;
     
-    // Conta i filtri degli attributi
+    // Conta i parametri che hanno almeno un filtro attivo
     if (selectedFilters && typeof selectedFilters === 'object') {
       Object.values(selectedFilters).forEach((values) => {
-        if (Array.isArray(values)) {
-          count += values.length;
+        if (Array.isArray(values) && values.length > 0) {
+          count += 1; // Conta 1 per ogni parametro con filtri attivi
         }
       });
     }
     
-    // Conta i filtri dei prezzi
-    if (priceRanges.wholesale_price?.min !== undefined || priceRanges.wholesale_price?.max !== undefined) {
-      count += 1;
-    }
-    if (priceRanges.retail_price?.min !== undefined || priceRanges.retail_price?.max !== undefined) {
+    // Conta il filtro di disponibilità se attivo
+    if (availabilityFilter?.type) {
       count += 1;
     }
     
-    // Conta il filtro di disponibilità
-    if (availabilityFilter?.type) {
+    // Conta il filtro prezzo ingrosso se attivo
+    if (priceRanges.wholesale_price?.min !== undefined || priceRanges.wholesale_price?.max !== undefined) {
+      count += 1;
+    }
+    
+    // Conta il filtro prezzo vendita se attivo
+    if (priceRanges.retail_price?.min !== undefined || priceRanges.retail_price?.max !== undefined) {
       count += 1;
     }
     
@@ -130,7 +132,20 @@ const NestedFilterMenu = ({
                       </span>
                     )}
                   </div>
-                  <ChevronRight className="h-4 w-4" />
+                  <div className="flex items-center gap-1">
+                    {activeCount > 0 && (
+                      <X 
+                        className="h-4 w-4 cursor-pointer hover:text-destructive" 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const newFilters = { ...selectedFilters };
+                          delete newFilters[paramId];
+                          onFilterChange(newFilters);
+                        }}
+                      />
+                    )}
+                    <ChevronRight className="h-4 w-4" />
+                  </div>
                 </div>
               </DropdownMenuSubTrigger>
               <DropdownMenuSubContent className="w-[240px]">

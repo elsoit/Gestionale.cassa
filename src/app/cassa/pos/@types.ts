@@ -149,6 +149,7 @@ export interface FrozenOrder {
 }
 
 export interface OrderItem {
+  id: number;
   product_id: number;
   article_code: string;
   variant_code: string;
@@ -156,6 +157,7 @@ export interface OrderItem {
   quantity: number;
   unit_cost: number;
   discount: number;
+  final_cost: string;
   total: number;
 }
 
