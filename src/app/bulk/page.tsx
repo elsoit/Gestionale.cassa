@@ -150,7 +150,11 @@ export default function BulkPage() {
 
   // Funzione per verificare se tutti i campi obbligatori sono stati mappati
   const isPreviewEnabled = useMemo(() => {
-    if (!selectedBrand || !selectedStatus) return false;
+    if (!selectedStatus) return false;
+    
+    // Verifica se il brand è selezionato dal database o mappato da Excel
+    const hasBrand = selectedBrand || columnMapping['brand'];
+    if (!hasBrand) return false;
     
     return requiredAttributes.every(attr => {
       // Se l'attributo è size o size_group, controlla anche le correzioni
@@ -160,7 +164,10 @@ export default function BulkPage() {
       if (attr === 'size_group' && !columnMapping['size_group']) {
         return corrections['size_group']?.['']?.id !== undefined;
       }
-      return columnMapping[attr] !== undefined;
+      if (attr === 'article_code' || attr === 'variant_code' || attr === 'wholesale_price') {
+        return columnMapping[attr] !== undefined;
+      }
+      return true;
     });
   }, [selectedBrand, selectedStatus, columnMapping, corrections]);
 
@@ -824,7 +831,8 @@ export default function BulkPage() {
         .map(row => ({
           article_code: row.article_code.value,
           variant_code: row.variant_code.value,
-          url: row.photo_value.value
+          url: row.photo_value.value,
+          isPublicUrl: row.photo_value.value.startsWith('https://pub-')
         }));
 
       if (photosToUpload.length > 0) {
@@ -832,7 +840,10 @@ export default function BulkPage() {
           const photosResponse = await fetch(`${process.env.API_URL}/api/products/bulk-photos`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ photos: photosToUpload }),
+            body: JSON.stringify({ 
+              photos: photosToUpload,
+              usePublicUrl: true 
+            }),
             mode: 'cors',
             credentials: 'include'
           });
@@ -1052,12 +1063,19 @@ export default function BulkPage() {
                         delete newMapping['brand'];
                         return newMapping;
                       });
-                    } else {
+                    } else if (value === '_select') {
                       setSelectedBrand('');
+                      setColumnMapping(prev => {
+                        const newMapping = { ...prev };
+                        delete newMapping['brand'];
+                        return newMapping;
+                      });
+                    } else {
+                      setSelectedBrand(''); // Resetta il brand selezionato dal database
                       handleColumnMappingChange('brand', value);
                     }
                   }}
-                  value={selectedBrand ? `db_${selectedBrand}` : (columnMapping['brand'] || '')}
+                  value={selectedBrand ? `db_${selectedBrand}` : (columnMapping['brand'] || '_select')}
                 >
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="Seleziona brand" />

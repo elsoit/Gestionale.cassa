@@ -8,7 +8,6 @@ import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 
-const server = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3003';
 
 interface Product {
   id: number;
@@ -122,7 +121,7 @@ export default function ProductPhotosManagementDialog({
       const normalizedArticleCode = articleCode.replace(/\s+/g, '').toLowerCase();
       const normalizedVariantCode = variantCode.replace(/\s+/g, '').toLowerCase();
 
-      const response = await fetch(`${server}/api/products/photos/${normalizedArticleCode}/${normalizedVariantCode}`);
+      const response = await fetch(`${process.env.API_URL}/api/products/photos/${normalizedArticleCode}/${normalizedVariantCode}`);
       if (!response.ok) throw new Error('Failed to fetch photos');
       const data = await response.json();
       
@@ -160,7 +159,7 @@ export default function ProductPhotosManagementDialog({
     const key = `${articleCode}-${variantCode}`;
     setIsSuggesting(key);
     try {
-      const response = await fetch(`${server}/api/products/photos/suggest`, {
+      const response = await fetch(`${process.env.API_URL}/api/products/photos/suggest`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -194,7 +193,7 @@ export default function ProductPhotosManagementDialog({
   const handleDownloadSuggested = async (imageUrl: string, articleCode: string, variantCode: string) => {
     setIsDownloading(imageUrl);
     try {
-      const response = await fetch(`${server}/api/products/photos/download-suggested`, {
+      const response = await fetch(`${process.env.API_URL}/api/products/photos/download-suggested`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -261,7 +260,7 @@ export default function ProductPhotosManagementDialog({
     });
 
     try {
-      const response = await fetch(`${server}/api/products/photos/upload`, {
+      const response = await fetch(`${process.env.API_URL}/api/products/photos/upload`, {
         method: 'POST',
         body: formData,
       });
@@ -287,7 +286,7 @@ export default function ProductPhotosManagementDialog({
 
   const handleSetMainPhoto = async (photoId: number, articleCode: string, variantCode: string) => {
     try {
-      const response = await fetch(`${server}/api/products/photos/${photoId}/main`, {
+      const response = await fetch(`${process.env.API_URL}/api/products/photos/${photoId}/main`, {
         method: 'PUT',
       });
 
@@ -312,7 +311,7 @@ export default function ProductPhotosManagementDialog({
 
   const handleDeletePhoto = async (photoId: number, articleCode: string, variantCode: string) => {
     try {
-      const response = await fetch(`${server}/api/products/photos/${photoId}`, {
+      const response = await fetch(`${process.env.API_URL}/api/products/photos/${photoId}`, {
         method: 'DELETE'
       });
 
@@ -340,7 +339,7 @@ export default function ProductPhotosManagementDialog({
       const formData = new FormData();
       formData.append('photo', file);
 
-      const response = await fetch(`${server}/api/products/photos/${articleCode}/${variantCode}/upload`, {
+      const response = await fetch(`${process.env.API_URL}/api/products/photos/${articleCode}/${variantCode}/upload`, {
         method: 'POST',
         body: formData,
         mode: 'cors',
@@ -370,7 +369,7 @@ export default function ProductPhotosManagementDialog({
 
   const handleDelete = async (photoId: number) => {
     try {
-      const response = await fetch(`${server}/api/products/photos/${photoId}`, {
+      const response = await fetch(`${process.env.API_URL}/api/products/photos/${photoId}`, {
         method: 'DELETE',
         mode: 'cors',
         credentials: 'include'
@@ -397,7 +396,7 @@ export default function ProductPhotosManagementDialog({
 
   const handleSetMain = async (photoId: number) => {
     try {
-      const response = await fetch(`${server}/api/products/photos/${photoId}/main`, {
+      const response = await fetch(`${process.env.API_URL}/api/products/photos/${photoId}/main`, {
         method: 'PUT',
         mode: 'cors',
         credentials: 'include'
