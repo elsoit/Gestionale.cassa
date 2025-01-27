@@ -122,6 +122,8 @@ export default function BulkPage() {
   const [isUploading, setIsUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(0)
   const [suggestedMappings, setSuggestedMappings] = useState<Set<string>>(new Set())
+  const [uploadSuccess, setUploadSuccess] = useState(false)
+  const [uploadStats, setUploadStats] = useState({ success: 0, total: 0 })
   
   // Refs
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -878,6 +880,18 @@ export default function BulkPage() {
         document.body.removeChild(link)
       }
 
+      setUploadStats({
+        success: results.filter(r => r.status === 'Creato').length,
+        total: results.length
+      });
+      setUploadSuccess(true);
+      
+      // Reset dopo 3 secondi
+      setTimeout(() => {
+        setUploadSuccess(false);
+        window.location.reload();
+      }, 3000);
+
       toast({
         title: 'Upload Completato',
         description: `${results.length} prodotti processati. Scarica il report per i dettagli.`,
@@ -916,6 +930,8 @@ export default function BulkPage() {
     if (fileInputRef.current) {
       fileInputRef.current.value = ''
     }
+    setIsUploading(false)
+    setUploadSuccess(false)
   }
 
   const errorRowCount = useMemo(() => {
@@ -1363,20 +1379,39 @@ export default function BulkPage() {
           </ScrollArea>
           <div className="mt-4 flex justify-end space-x-4">
             <Button variant="outline" onClick={handleCancel}>Annulla</Button>
-            <Button 
-              onClick={handleUpload} 
-              disabled={isUploading || errorRowCount > 0}
-            >
-              {isUploading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Caricamento {uploadProgress}%
-                </>
-              ) : (
-                'Carica'
+            <div className="relative">
+              <Button
+                onClick={handleUpload}
+                disabled={!isPreviewEnabled || isUploading}
+                className={isUploading ? 'opacity-80' : ''}
+              >
+                {isUploading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Caricamento {uploadProgress}%
+                  </>
+                ) : (
+                  'Carica'
+                )}
+              </Button>
+
+              {isUploading && (
+                <Button
+                  variant="destructive"
+                  onClick={handleCancel}
+                  className="absolute top-0 left-0 w-full h-full opacity-0 hover:opacity-100 transition-opacity duration-200"
+                >
+                  Annulla
+                </Button>
               )}
-            </Button>
+            </div>
           </div>
+        </div>
+      )}
+
+      {uploadSuccess && (
+        <div className="mt-4 p-4 bg-green-100 text-green-700 rounded">
+          Caricamento completato con successo! {uploadStats.success} prodotti caricati su {uploadStats.total}
         </div>
       )}
 
