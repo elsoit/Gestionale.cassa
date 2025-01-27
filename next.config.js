@@ -2,7 +2,7 @@
 const nextConfig = {
   env: {
     API_URL: process.env.NODE_ENV === 'production' 
-      ? 'http://api2.artexmoda.com'  
+      ? 'https://api2.artexmoda.com'  
       : 'http://localhost:3003'
   },
   images: {
