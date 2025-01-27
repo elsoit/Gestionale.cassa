@@ -34,13 +34,13 @@ export async function verifyProductData(productData: any[]) {
 
 async function fetchSizes(): Promise<Size[]> {
   // Implement database fetch for sizes
-  const response = await fetch('http://localhost:3003/api/sizes')
+  const response = await fetch(`${process.env.API_URL}/api/sizes`)
   return response.json()
 }
 
 async function fetchSizeGroups(): Promise<SizeGroup[]> {
   // Implement database fetch for size groups
-  const response = await fetch('http://localhost:3003/api/size-groups')
+  const response = await fetch(`${process.env.API_URL}/api/size-groups`)
   return response.json()
 }
 

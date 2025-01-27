@@ -37,7 +37,7 @@ export function AttributeDialog({ parameterId, parameterName, open, onClose }: A
   const { data: attributes = [], isLoading } = useQuery({
     queryKey: ['attributes', parameterId],
     queryFn: async () => {
-      const response = await fetch(`http://localhost:3003/api/attributes/parameter/${parameterId}`)
+      const response = await fetch(`${process.env.API_URL}/api/attributes/parameter/${parameterId}`)
       if (!response.ok) throw new Error('Failed to fetch attributes')
       return response.json()
     },
@@ -47,7 +47,7 @@ export function AttributeDialog({ parameterId, parameterName, open, onClose }: A
   // Create attribute
   const createMutation = useMutation({
     mutationFn: async (name: string) => {
-      const response = await fetch('http://localhost:3003/api/attributes', {
+      const response = await fetch(`${process.env.API_URL}/api/attributes`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ parameter_id: parameterId, name })
@@ -78,7 +78,7 @@ export function AttributeDialog({ parameterId, parameterName, open, onClose }: A
   // Update attribute
   const updateMutation = useMutation({
     mutationFn: async ({ id, name }: { id: number, name: string }) => {
-      const response = await fetch(`http://localhost:3003/api/attributes/${id}`, {
+      const response = await fetch(`${process.env.API_URL}/api/attributes/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name })
@@ -110,7 +110,7 @@ export function AttributeDialog({ parameterId, parameterName, open, onClose }: A
   // Delete attribute
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
-      const response = await fetch(`http://localhost:3003/api/attributes/${id}`, {
+      const response = await fetch(`${process.env.API_URL}/api/attributes/${id}`, {
         method: 'DELETE'
       })
       if (!response.ok) throw new Error('Failed to delete attribute')

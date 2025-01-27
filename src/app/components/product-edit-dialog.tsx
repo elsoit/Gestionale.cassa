@@ -34,7 +34,6 @@ export default function ProductEditDialog({ isOpen, onClose, product, onProductU
     } : null
   });
   
-  const server = 'http://localhost:3003';
   const [formData, setFormData] = useState({
     article_codes: [] as string[],
     variant_codes: [] as string[],
@@ -64,10 +63,10 @@ export default function ProductEditDialog({ isOpen, onClose, product, onProductU
       try {
         console.log('Fetching options...');
         const [brandsRes, sizeGroupsRes, statusesRes, parametersRes] = await Promise.all([
-          fetch(`${server}/api/brands`),
-          fetch(`${server}/api/size-groups`),
-          fetch(`${server}/api/statuses/field/Products`),
-          fetch(`${server}/api/product-attributes/parameters`)
+          fetch(`${process.env.API_URL}/api/brands`),
+          fetch(`${process.env.API_URL}/api/size-groups`),
+          fetch(`${process.env.API_URL}/api/statuses/field/Products`),
+          fetch(`${process.env.API_URL}/api/product-attributes/parameters`)
         ]);
 
         const [brands, sizeGroups, statuses, parameters] = await Promise.all([
@@ -167,7 +166,7 @@ export default function ProductEditDialog({ isOpen, onClose, product, onProductU
 
     try {
       console.log('Fetching sizes for group:', groupId);
-      const sizesRes = await fetch(`${server}/api/size-group-sizes/${groupId}/sizes`, {
+      const sizesRes = await fetch(`${process.env.API_URL}/api/size-group-sizes/${groupId}/sizes`, {
         mode: 'cors',
         credentials: 'include'
       });
@@ -225,7 +224,7 @@ export default function ProductEditDialog({ isOpen, onClose, product, onProductU
 
       console.log('Sending payload:', payload);
 
-      const response = await fetch(`${server}/api/products/${product.id}`, {
+      const response = await fetch(`${process.env.API_URL}/api/products/${product.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -273,7 +272,7 @@ export default function ProductEditDialog({ isOpen, onClose, product, onProductU
 
   const createAttribute = async (parameterId: string, name: string) => {
     try {
-      const response = await fetch(`${server}/api/product-attributes`, {
+      const response = await fetch(`${process.env.API_URL}/api/product-attributes`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -11,7 +11,7 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import Image from 'next/image'
 
-const server = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3003';
+const server = process.env.API_URL;
 
 const fetchMainPhoto = async (article_code: string, variant_code: string) => {
   try {
@@ -46,7 +46,7 @@ export default function OrdersPage() {
   const { data: puntiVendita } = useQuery({
     queryKey: ['puntiVendita'],
     queryFn: async () => {
-      const response = await fetch('http://localhost:3003/api/punti-vendita')
+      const response = await fetch(`${process.env.API_URL}/api/punti-vendita`)
       if (!response.ok) throw new Error('Network response was not ok')
       return response.json()
     }
@@ -57,8 +57,8 @@ export default function OrdersPage() {
     queryKey: ['orders', selectedPuntoVendita],
     queryFn: async () => {
       const url = selectedPuntoVendita && selectedPuntoVendita !== 'all'
-        ? `http://localhost:3003/api/orders/punto-vendita/${selectedPuntoVendita}`
-        : 'http://localhost:3003/api/orders'
+        ? `${process.env.API_URL}/api/orders/punto-vendita/${selectedPuntoVendita}`
+        : `${process.env.API_URL}/api/orders`
       const response = await fetch(url)
       if (!response.ok) throw new Error('Network response was not ok')
       const orders = await response.json()
@@ -66,9 +66,9 @@ export default function OrdersPage() {
       // Recupera i dettagli dei prodotti e pagamenti per ogni ordine
       const ordersWithDetails = await Promise.all(orders.map(async (order: any) => {
         const [detailsResponse, paymentsResponse, vouchersResponse] = await Promise.all([
-          fetch(`http://localhost:3003/api/order-items/order/${order.id}`),
-          fetch(`http://localhost:3003/api/order-payments/order/${order.id}`),
-          fetch(`${server}/api/vouchers/order/${order.id}`)
+          fetch(`${process.env.API_URL}/api/order-items/order/${order.id}`),
+          fetch(`${process.env.API_URL}/api/order-payments/order/${order.id}`),
+          fetch(`${process.env.API_URL}/api/vouchers/order/${order.id}`)
         ]);
         const details = await detailsResponse.json();
         const payments = await paymentsResponse.json();
@@ -77,7 +77,7 @@ export default function OrdersPage() {
         // Recupera i dettagli completi dei prodotti e le foto
         const itemsWithDetails = await Promise.all(details.map(async (item: any) => {
           const [productResponse, mainPhoto] = await Promise.all([
-            fetch(`${server}/api/products/${item.product_id}`),
+            fetch(`${process.env.API_URL}/api/products/${item.product_id}`),
             fetchMainPhoto(item.article_code, item.variant_code)
           ]);
           

@@ -1,7 +1,5 @@
 import { type RefundMethod } from '../components/CancelReservationModal'
 
-const server = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3003';
-
 interface CancelReservationParams {
   orderId: number
   warehouseId: number
@@ -17,7 +15,7 @@ export async function cancelReservation({
 }: CancelReservationParams): Promise<void> {
   try {
     // 1. Ottieni gli items dell'ordine prima di qualsiasi modifica
-    const orderItemsResponse = await fetch(`${server}/api/order-items/order/${orderId}`)
+    const orderItemsResponse = await fetch(`${process.env.API_URL}/api/order-items/order/${orderId}`)
     if (!orderItemsResponse.ok) throw new Error('Errore nel recupero degli items dell\'ordine')
     const orderItems = await orderItemsResponse.json()
 
@@ -26,7 +24,7 @@ export async function cancelReservation({
 
     try {
       // 2. Aggiorna lo stato dell'ordine a "Annullato" (id: 19)
-      const updateOrderResponse = await fetch(`${server}/api/order-cancellation/orders/${orderId}/status`, {
+      const updateOrderResponse = await fetch(`${process.env.API_URL}/api/order-cancellation/orders/${orderId}/status`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -41,7 +39,7 @@ export async function cancelReservation({
       }
 
       // 2.5 Imposta deleted = true per tutti gli order_items
-      const updateItemsResponse = await fetch(`${server}/api/order-cancellation/order-items/${orderId}/update-deleted`, {
+      const updateItemsResponse = await fetch(`${process.env.API_URL}/api/order-cancellation/order-items/${orderId}/update-deleted`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -53,7 +51,7 @@ export async function cancelReservation({
       }
 
       // 3. Aggiorna lo stato di tutti i pagamenti dell'ordine a "Cancelled" (id: 21)
-      const updatePaymentsResponse = await fetch(`${server}/api/order-cancellation/order-payments/${orderId}/update-status`, {
+      const updatePaymentsResponse = await fetch(`${process.env.API_URL}/api/order-cancellation/order-payments/${orderId}/update-status`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -70,7 +68,7 @@ export async function cancelReservation({
 
       // 4. Aggiorna le disponibilità nel magazzino (storno)
       for (const item of orderItems) {
-        const updateStockResponse = await fetch(`${server}/api/product-availability/update`, {
+        const updateStockResponse = await fetch(`${process.env.API_URL}/api/product-availability/update`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -86,7 +84,7 @@ export async function cancelReservation({
         if (!updateStockResponse.ok) {
           // Se l'aggiornamento del magazzino fallisce, ripristina le quantità già aggiornate
           for (const update of completedStockUpdates) {
-            await fetch(`${server}/api/product-availability/update`, {
+            await fetch(`${process.env.API_URL}/api/product-availability/update`, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
@@ -113,7 +111,7 @@ export async function cancelReservation({
         const now = new Date();
         const oneYearFromNow = new Date(now.getFullYear() + 1, now.getMonth(), now.getDate());
 
-        const createVoucherResponse = await fetch(`${server}/api/vouchers`, {
+        const createVoucherResponse = await fetch(`${process.env.API_URL}/api/vouchers`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -135,7 +133,7 @@ export async function cancelReservation({
       // Se qualsiasi operazione fallisce dopo l'aggiornamento del magazzino,
       // ripristina le quantità
       for (const update of completedStockUpdates) {
-        await fetch(`${server}/api/product-availability/update`, {
+        await fetch(`${process.env.API_URL}/api/product-availability/update`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

@@ -52,7 +52,7 @@ export default function LoginPage() {
       console.log('Login - Payload:', payload)
       console.log('Login - Invio richiesta...')
 
-      const response = await fetch('http://localhost:3003/api/auth/login', {
+      const response = await fetch(`${process.env.API_URL}/api/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

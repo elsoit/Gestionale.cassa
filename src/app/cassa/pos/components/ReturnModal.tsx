@@ -91,7 +91,7 @@ export function ReturnModal({ isOpen, onClose, onConfirm, amount, orderId }: Ret
       
       setIsLoadingItems(true);
       try {
-        const response = await fetch(`http://localhost:3003/api/order-items/order/${orderId}`);
+        const response = await fetch(`${process.env.API_URL}/api/order-items/order/${orderId}`);
         if (!response.ok) throw new Error('Errore nel recupero degli items');
         const data = await response.json();
         setOrderItems(data);

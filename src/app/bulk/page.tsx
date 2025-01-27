@@ -83,8 +83,6 @@ interface TableError {
   rows: number[];
 }
 
-const server = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3003';
-
 // Definizione del tipo per la funzione debounce
 type DebouncedFunction<T extends (...args: any[]) => any> = (...args: Parameters<T>) => void;
 
@@ -184,10 +182,10 @@ export default function BulkPage() {
     setIsLoading(true)
     try {
       const [brandsResponse, statusesResponse, sizesResponse, sizeGroupsResponse] = await Promise.all([
-        fetch(`${server}/api/brands`, { mode: 'cors', credentials: 'include' }),
-        fetch(`${server}/api/statuses/field/Products`, { mode: 'cors', credentials: 'include' }),
-        fetch(`${server}/api/sizes`, { mode: 'cors', credentials: 'include' }),
-        fetch(`${server}/api/size-groups`, { mode: 'cors', credentials: 'include' })
+        fetch(`${process.env.API_URL}/api/brands`, { mode: 'cors', credentials: 'include' }),
+        fetch(`${process.env.API_URL}/api/statuses/field/Products`, { mode: 'cors', credentials: 'include' }),
+        fetch(`${process.env.API_URL}/api/sizes`, { mode: 'cors', credentials: 'include' }),
+        fetch(`${process.env.API_URL}/api/size-groups`, { mode: 'cors', credentials: 'include' })
       ])
 
       const [brandsData, statusesData, sizesData, sizeGroupsData] = await Promise.all([
@@ -474,7 +472,7 @@ export default function BulkPage() {
       const formData = new FormData();
       formData.append('file', file);
       
-      const uploadResponse = await fetch(`${server}/api/products/photos/upload`, {
+      const uploadResponse = await fetch(`${process.env.API_URL}/api/products/photos/upload`, {
         method: 'POST',
         body: formData,
         mode: 'cors',
@@ -770,7 +768,7 @@ export default function BulkPage() {
         }
 
         // Verifica se il prodotto esiste già
-        const checkResponse = await fetch(`${server}/api/products/check`, {
+        const checkResponse = await fetch(`${process.env.API_URL}/api/products/check`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -792,7 +790,7 @@ export default function BulkPage() {
           results.push({ status: 'Duplicato', product: productData })
         } else {
           // Crea il prodotto usando la nuova API di bulk upload
-          const createResponse = await fetch(`${server}/api/products/bulk`, {
+          const createResponse = await fetch(`${process.env.API_URL}/api/products/bulk`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
@@ -831,7 +829,7 @@ export default function BulkPage() {
 
       if (photosToUpload.length > 0) {
         try {
-          const photosResponse = await fetch(`${server}/api/products/bulk-photos`, {
+          const photosResponse = await fetch(`${process.env.API_URL}/api/products/bulk-photos`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ photos: photosToUpload }),

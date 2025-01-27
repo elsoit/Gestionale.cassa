@@ -82,7 +82,7 @@ export default function DashboardPage() {
       if (to) params.append('to', format(to, 'yyyy-MM-dd'))
       
       const queryString = params.toString()
-      const baseUrl = 'http://localhost:3003/api/orders/dashboard'
+      const baseUrl = `${process.env.API_URL}/api/orders/dashboard`
       
       // Fetch dashboard stats with date range
       const statsResponse = await fetch(`${baseUrl}/stats?${queryString}`)

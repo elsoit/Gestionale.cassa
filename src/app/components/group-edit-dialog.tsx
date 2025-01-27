@@ -17,8 +17,6 @@ import {
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 
-const server = process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:3003'
-
 interface GroupEditDialogProps {
   isOpen: boolean
   onClose: () => void
@@ -60,10 +58,10 @@ export function GroupEditDialog({
       try {
         // Carica stati e parametri
         const [statusesRes, parametersRes] = await Promise.all([
-          fetch(`${server}/api/statuses/field/Products`, {
+          fetch(`${process.env.API_URL}/api/statuses/field/Products`, {
             credentials: 'include'
           }),
-          fetch(`${server}/api/product-attributes/parameters`, {
+          fetch(`${process.env.API_URL}/api/product-attributes/parameters`, {
             credentials: 'include'
           })
         ]);
@@ -128,7 +126,7 @@ export function GroupEditDialog({
 
       console.log('Sending updates:', updates);
 
-      const updateResponse = await fetch(`${server}/api/products/update-batch`, {
+      const updateResponse = await fetch(`${process.env.API_URL}/api/products/update-batch`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'

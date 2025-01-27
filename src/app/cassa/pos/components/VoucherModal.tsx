@@ -7,8 +7,6 @@ import { Input } from '@/components/ui/input'
 import { Loader2 } from 'lucide-react'
 import debounce from 'lodash/debounce'
 
-const server = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3003'
-
 interface VoucherModalProps {
   isOpen: boolean
   onClose: () => void
@@ -43,7 +41,7 @@ export function VoucherModal({
     setError('')
 
     try {
-      const response = await fetch(`${server}/api/vouchers/barcode/${code}`)
+      const response = await fetch(`${process.env.API_URL}/api/vouchers/barcode/${code}`)
       
       if (!response.ok) {
         throw new Error('Voucher non trovato')

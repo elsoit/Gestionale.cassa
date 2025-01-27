@@ -51,58 +51,58 @@ import {
 import { AttributeDialog } from '../components/attribute-dialog'
 
 const settingsSections = [
-  { name: "Brands", apiLink: "http://localhost:3003/api/brands", defaultColumns: ['name', 'description'] },
-  { name: "Channels", apiLink: "http://localhost:3003/api/channels", defaultColumns: ['name', 'code'] },
+  { name: "Brands", apiLink: `${process.env.API_URL}/api/brands`, defaultColumns: ['name', 'description'] },
+  { name: "Channels", apiLink: `${process.env.API_URL}/api/channels`, defaultColumns: ['name', 'code'] },
   { 
     name: "Punti Vendita", 
-    apiLink: "http://localhost:3003/api/punti-vendita", 
+    apiLink: `${process.env.API_URL}/api/punti-vendita`, 
     defaultColumns: ['name', 'code', 'channel_name', 'warehouse_name', 'address', 'status_name'],
     hasRelations: true,
     relationsConfig: {
       references: [
-        { name: 'Channel', apiLink: 'http://localhost:3003/api/channels' },
-        { name: 'Warehouse', apiLink: 'http://localhost:3003/api/warehouses' },
-        { name: 'Address', apiLink: 'http://localhost:3003/api/addresses' },
-        { name: 'Status', apiLink: 'http://localhost:3003/api/statuses' }
+        { name: 'Channel', apiLink: `${process.env.API_URL}/api/channels` },
+        { name: 'Warehouse', apiLink: `${process.env.API_URL}/api/warehouses` },
+        { name: 'Address', apiLink: `${process.env.API_URL}/api/addresses` },
+        { name: 'Status', apiLink: `${process.env.API_URL}/api/statuses` }
       ]
     }
   },
   { name: "Parameters", 
-    apiLink: "http://localhost:3003/api/parameters", 
+    apiLink: `${process.env.API_URL}/api/parameters`, 
     defaultColumns: ['name', 'description', 'is_required', 'is_expandable'],
     hasAttributes: true
   },
-  { name: "Payment Methods", apiLink: "http://localhost:3003/api/payment-methods", defaultColumns: ['name', 'code', 'description', 'icon'] },
+  { name: "Payment Methods", apiLink: `${process.env.API_URL}/api/payment-methods`, defaultColumns: ['name', 'code', 'description', 'icon'] },
   { 
     name: "Sizes", 
-    apiLink: "http://localhost:3003/api/sizes", 
+    apiLink: `${process.env.API_URL}/api/sizes`, 
     defaultColumns: ['name', 'code'],
     multipleCreate: true
   },
   { 
     name: "Size Groups", 
-    apiLink: "http://localhost:3003/api/size-groups", 
+    apiLink: `${process.env.API_URL}/api/size-groups`, 
     defaultColumns: ['name', 'description'],
     hasRelations: true,
     relationsConfig: {
       name: "Sizes",
-      apiLink: (id: number) => `http://localhost:3003/api/size-group-sizes/group/${id}/sizes`,
-      createLink: "http://localhost:3003/api/size-group-sizes",
-      deleteLink: (id: number) => `http://localhost:3003/api/size-group-sizes/${id}`,
+      apiLink: (id: number) => `${process.env.API_URL}/api/size-group-sizes/group/${id}/sizes`,
+      createLink: `${process.env.API_URL}/api/size-group-sizes`,
+      deleteLink: (id: number) => `${process.env.API_URL}/api/size-group-sizes/${id}`,
       columns: ['size_name']
     }
   },
   { 
     name: "Status", 
-    apiLink: "http://localhost:3003/api/statuses", 
+    apiLink: `${process.env.API_URL}/api/statuses`, 
     defaultColumns: ['name', 'field'],
     hasEnum: true,
     enumConfig: {
-      apiLink: "http://localhost:3003/api/statuses/enum/fields"
+      apiLink: `${process.env.API_URL}/api/statuses/enum/fields`
     }
   },
-  { name: "Types", apiLink: "http://localhost:3003/api/types", defaultColumns: ['typecategory', 'name', 'description'] },
-  { name: "Warehouses", apiLink: "http://localhost:3003/api/warehouses", defaultColumns: ['name', 'code', 'address_id', 'description', 'type_id', 'status_id'] }
+  { name: "Types", apiLink: `${process.env.API_URL}/api/types`, defaultColumns: ['typecategory', 'name', 'description'] },
+  { name: "Warehouses", apiLink: `${process.env.API_URL}/api/warehouses`, defaultColumns: ['name', 'code', 'address_id', 'description', 'type_id', 'status_id'] }
 ]
 
 // API fetch function
@@ -290,7 +290,7 @@ function EntryForm({
   // Fetch all sizes if we're editing a size group
   const { data: allSizes } = useQuery({
     queryKey: ['sizes'],
-    queryFn: () => fetchData('http://localhost:3003/api/sizes'),
+    queryFn: () => fetchData(`${process.env.API_URL}/api/sizes`),
     enabled: section.name === 'Size Groups'
   })
 
@@ -300,7 +300,7 @@ function EntryForm({
     queryFn: async () => {
       if (!initialData?.id) return [];
       try {
-        return await fetchData(`http://localhost:3003/api/size-group-sizes/${initialData.id}/sizes`);
+        return await fetchData(`${process.env.API_URL}/api/size-group-sizes/${initialData.id}/sizes`);
       } catch (error) {
         console.error('Error fetching sizes:', error);
         return [];
@@ -313,7 +313,7 @@ function EntryForm({
   const { data: statusFields } = useQuery({
     queryKey: ['statusFields'],
     queryFn: async () => {
-      const response = await fetch('http://localhost:3003/api/statuses/enum/fields');
+      const response = await fetch(`${process.env.API_URL}/api/statuses/enum/fields`);
       const data = await response.json();
       return data || [];
     },
@@ -336,25 +336,25 @@ function EntryForm({
   // Fetch delle opzioni per i punti vendita
   const { data: channels } = useQuery({
     queryKey: ['channels'],
-    queryFn: () => fetchData('http://localhost:3003/api/channels'),
+    queryFn: () => fetchData(`${process.env.API_URL}/api/channels`),
     enabled: section.name === 'Punti Vendita'
   });
 
   const { data: warehouses } = useQuery({
     queryKey: ['warehouses'],
-    queryFn: () => fetchData('http://localhost:3003/api/warehouses'),
+    queryFn: () => fetchData(`${process.env.API_URL}/api/warehouses`),
     enabled: section.name === 'Punti Vendita'
   });
 
   const { data: statuses } = useQuery({
     queryKey: ['statuses'],
-    queryFn: () => fetchData('http://localhost:3003/api/statuses/field/Stores'),
+    queryFn: () => fetchData(`${process.env.API_URL}/api/statuses/field/Stores`),
     enabled: section.name === 'Punti Vendita'
   });
 
   const { data: addresses } = useQuery({
     queryKey: ['addresses'],
-    queryFn: () => fetchData('http://localhost:3003/api/addresses'),
+    queryFn: () => fetchData(`${process.env.API_URL}/api/addresses`),
     enabled: section.name === 'Punti Vendita'
   });
 
@@ -423,7 +423,7 @@ function EntryForm({
       
       if (section.name === 'Sizes' && section.multipleCreate) {
         const sizes = formData.name.split(',').map((s: string) => s.trim()).filter(Boolean);
-        const existingSizes = await fetch('http://localhost:3003/api/sizes')
+        const existingSizes = await fetch(`${process.env.API_URL}/api/sizes`)
           .then(res => res.json())
           .catch(() => []);
 
@@ -441,7 +441,7 @@ function EntryForm({
 
         await Promise.all(
           newSizes.map(async (sizeName: string) => {
-            const response = await fetch('http://localhost:3003/api/sizes', {
+            const response = await fetch(`${process.env.API_URL}/api/sizes`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ name: sizeName })
@@ -474,14 +474,14 @@ function EntryForm({
 
           await Promise.all([
             ...sizesToAdd.map(sizeId => 
-              fetch('http://localhost:3003/api/size-group-sizes', {
+              fetch(`${process.env.API_URL}/api/size-group-sizes`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ size_group_id: groupId, size_id: sizeId })
               })
             ),
             ...(sizesToRemove || []).map((size: Size) => 
-              fetch(`http://localhost:3003/api/size-group-sizes/${size.id}`, {
+              fetch(`${process.env.API_URL}/api/size-group-sizes/${size.id}`, {
                 method: 'DELETE'
               })
             )

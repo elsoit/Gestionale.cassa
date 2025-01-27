@@ -1,5 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  env: {
+    API_URL: process.env.NODE_ENV === 'production' 
+      ? 'http://54.82.144.120:3003'
+      : 'http://localhost:3003'
+  },
   images: {
     remotePatterns: [
       {

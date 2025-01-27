@@ -324,7 +324,7 @@ export default function POSSystem() {
   const { data: operators = [] } = useQuery<Operator[]>({
     queryKey: ['operatorsForSelect'],
     queryFn: async () => {
-      const response = await fetch('http://localhost:3003/api/operators/select');
+      const response = await fetch(`${process.env.API_URL}/api/operators/select`);
       if (!response.ok) throw new Error('Network response was not ok');
       return response.json();
     }
@@ -403,13 +403,13 @@ export default function POSSystem() {
   const fetchData = async () => {
     try {
       const [productResponse, brandData, sizeData, sizeGroupData, statusData, availabilityData] = await Promise.all([
-        fetch(`${server}/api/products`).then(res => res.json()),
-        fetch(`${server}/api/brands`).then(res => res.json()),
-        fetch(`${server}/api/sizes`).then(res => res.json()),
-        fetch(`${server}/api/size-groups`).then(res => res.json()),
-        fetch(`${server}/api/statuses`).then(res => res.json()),
-        fetch(`${server}/api/product-availability`).then(res => res.json())
-      ])
+        fetch(`${process.env.API_URL}/api/products`).then(res => res.json()),
+        fetch(`${process.env.API_URL}/api/brands`).then(res => res.json()),
+        fetch(`${process.env.API_URL}/api/sizes`).then(res => res.json()),
+        fetch(`${process.env.API_URL}/api/size-groups`).then(res => res.json()),
+        fetch(`${process.env.API_URL}/api/statuses`).then(res => res.json()),
+        fetch(`${process.env.API_URL}/api/product-availability`).then(res => res.json())
+      ]);
 
       const availabilityMap = availabilityData.reduce((acc: {[key: number]: number}, item: { product_id: number, quantity: number }) => {
         acc[item.product_id] = (acc[item.product_id] || 0) + item.quantity;
@@ -832,7 +832,7 @@ export default function POSSystem() {
     
     try {
       // Cerca il prodotto tramite codice a barre
-      const productResponse = await fetch(`${server}/api/pos/store/${selectedPuntoVendita?.id}/barcode/${value}`, {
+      const productResponse = await fetch(`${process.env.API_URL}/api/pos/store/${selectedPuntoVendita?.id}/barcode/${value}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -1712,7 +1712,7 @@ export default function POSSystem() {
   const { data: paymentMethodsData = [] } = useQuery<PaymentMethod[]>({
     queryKey: ['payment-methods'],
     queryFn: async () => {
-      const response = await fetch(`${server}/api/payment-methods`);
+      const response = await fetch(`${process.env.API_URL}/api/payment-methods`);
       if (!response.ok) throw new Error('Network response was not ok');
       const data = await response.json();
       return data;
@@ -1726,7 +1726,7 @@ export default function POSSystem() {
       if (!selectedPuntoVendita) return [];
       
       console.log('Fetching products for store:', selectedPuntoVendita.id);
-      const response = await fetch(`${server}/api/pos/store/${selectedPuntoVendita.id}/products`);
+      const response = await fetch(`${process.env.API_URL}/api/pos/store/${selectedPuntoVendita.id}/products`);
       if (!response.ok) {
         if (response.status === 404) {
           toast({
@@ -1746,7 +1746,7 @@ export default function POSSystem() {
       }
 
       // Recupera le disponibilità dal magazzino del punto vendita
-      const availabilityResponse = await fetch(`${server}/api/product-availability/warehouse/${selectedPuntoVendita.warehouse_id}`);
+      const availabilityResponse = await fetch(`${process.env.API_URL}/api/product-availability/warehouse/${selectedPuntoVendita.warehouse_id}`);
       if (!availabilityResponse.ok) throw new Error('Failed to fetch availability');
       const availabilityData = await availabilityResponse.json();
 
@@ -2200,7 +2200,7 @@ export default function POSSystem() {
         }
       };
 
-      const response = await fetch(`${server}/api/documents/generate`, {
+      const response = await fetch(`${process.env.API_URL}/api/documents/generate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -2472,8 +2472,8 @@ export default function POSSystem() {
   const fetchActivePromotion = async (puntoVenditaId: number) => {
     console.log('🏪 Recupero promozioni per punto vendita ID:', puntoVenditaId);
     try {
-      console.log('📍 URL chiamata:', `http://localhost:3003/api/punti-vendita-promotions/active/${puntoVenditaId}`);
-      const response = await fetch(`http://localhost:3003/api/punti-vendita-promotions/active/${puntoVenditaId}`);
+      console.log('📍 URL chiamata:', `${process.env.API_URL}/api/punti-vendita-promotions/active/${puntoVenditaId}`);
+      const response = await fetch(`${process.env.API_URL}/api/punti-vendita-promotions/active/${puntoVenditaId}`);
       console.log('📡 Status risposta:', response.status);
       
       if (!response.ok) {

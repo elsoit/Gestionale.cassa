@@ -25,8 +25,6 @@ interface SuggestedPhoto {
   title: string;
 }
 
-const server = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3003';
-
 export default function PhotoManagementDialog({ 
   open, 
   onOpenChange,
@@ -47,7 +45,7 @@ export default function PhotoManagementDialog({
       const normalizedArticleCode = articleCode.replace(/\s+/g, '').toLowerCase();
       const normalizedVariantCode = variantCode.replace(/\s+/g, '').toLowerCase();
 
-      const response = await fetch(`${server}/api/products/photos/${normalizedArticleCode}/${normalizedVariantCode}`);
+      const response = await fetch(`${process.env.API_URL}/api/products/photos/${normalizedArticleCode}/${normalizedVariantCode}`);
       if (!response.ok) throw new Error('Failed to fetch photos');
       const data = await response.json();
       setPhotos(data);
@@ -74,7 +72,7 @@ export default function PhotoManagementDialog({
         formData.append('article_code', normalizedArticleCode);
         formData.append('variant_code', normalizedVariantCode);
 
-        const response = await fetch(`${server}/api/products/photos/${normalizedArticleCode}/${normalizedVariantCode}/upload`, {
+        const response = await fetch(`${process.env.API_URL}/api/products/photos/${normalizedArticleCode}/${normalizedVariantCode}/upload`, {
           method: 'POST',
           body: formData
         });
@@ -102,7 +100,7 @@ export default function PhotoManagementDialog({
 
   const handleSetMainPhoto = async (photoId: number) => {
     try {
-      const response = await fetch(`${server}/api/products/photos/${photoId}/main`, {
+      const response = await fetch(`${process.env.API_URL}/api/products/photos/${photoId}/main`, {
         method: 'PUT'
       });
       if (!response.ok) throw new Error('Failed to set main photo');
@@ -115,7 +113,7 @@ export default function PhotoManagementDialog({
 
   const handleDeletePhoto = async (photoId: number) => {
     try {
-      const response = await fetch(`${server}/api/products/photos/${photoId}`, {
+      const response = await fetch(`${process.env.API_URL}/api/products/photos/${photoId}`, {
         method: 'DELETE'
       });
       if (!response.ok) throw new Error('Failed to delete photo');
@@ -129,7 +127,7 @@ export default function PhotoManagementDialog({
   const handleSuggestPhotos = async () => {
     setIsSuggesting(true)
     try {
-      const response = await fetch(`${server}/api/products/photos/suggest`, {
+      const response = await fetch(`${process.env.API_URL}/api/products/photos/suggest`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -160,7 +158,7 @@ export default function PhotoManagementDialog({
   const handleDownloadSuggested = async (imageUrl: string) => {
     setIsDownloading(imageUrl)
     try {
-      const response = await fetch(`${server}/api/products/photos/download-suggested`, {
+      const response = await fetch(`${process.env.API_URL}/api/products/photos/download-suggested`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -203,7 +201,7 @@ export default function PhotoManagementDialog({
       const formData = new FormData();
       formData.append('photo', file);
 
-      const response = await fetch(`${server}/api/products/photos/${articleCode}/${variantCode}/upload`, {
+      const response = await fetch(`${process.env.API_URL}/api/products/photos/${articleCode}/${variantCode}/upload`, {
         method: 'POST',
         body: formData,
         mode: 'cors',
@@ -234,7 +232,7 @@ export default function PhotoManagementDialog({
 
   const handleDelete = async (photoId: number) => {
     try {
-      const response = await fetch(`${server}/api/products/photos/${photoId}`, {
+      const response = await fetch(`${process.env.API_URL}/api/products/photos/${photoId}`, {
         method: 'DELETE',
         mode: 'cors',
         credentials: 'include'
@@ -262,7 +260,7 @@ export default function PhotoManagementDialog({
 
   const handleSetMain = async (photoId: number) => {
     try {
-      const response = await fetch(`${server}/api/products/photos/${photoId}/main`, {
+      const response = await fetch(`${process.env.API_URL}/api/products/photos/${photoId}/main`, {
         method: 'PUT',
         mode: 'cors',
         credentials: 'include'

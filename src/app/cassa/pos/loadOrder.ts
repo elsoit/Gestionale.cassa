@@ -4,12 +4,10 @@ import type {
   LoadOrderDependencies
 } from './@types'
 
-const server = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3003';
-
 export const loadOrderFromDB = async (order: Order, deps: LoadOrderDependencies) => {
   try {
     // 1. Recupera i dettagli dell'ordine con i prodotti
-    const response = await fetch(`${server}/api/order-items/${order.id}`);
+    const response = await fetch(`${process.env.API_URL}/api/order-items/${order.id}`);
     if (!response.ok) throw new Error('Failed to fetch order items');
     const orderItems = await response.json();
     
