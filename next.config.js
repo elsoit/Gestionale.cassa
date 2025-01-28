@@ -2,7 +2,7 @@
 const nextConfig = {
   env: {
     API_URL: process.env.NODE_ENV === 'production' 
-      ? 'https://api2.artexmoda.com'  
+      ? 'http://localhost:3003'  
       : 'http://localhost:3003'
   },
   async headers() {

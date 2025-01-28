@@ -84,7 +84,7 @@ export default function GroupBarcodesDialog({
         productIds: JSON.stringify(productIds)
       });
 
-      const response = await fetch(`http://localhost:3003/api/barcode/group-barcodes?${params}`, {
+      const response = await fetch(`${process.env.API_URL}/api/barcode/group-barcodes?${params}`, {
         mode: 'cors',
         credentials: 'include'
       });
@@ -138,7 +138,7 @@ export default function GroupBarcodesDialog({
   const generateBarcode = async (productId: number) => {
     setGeneratingForProduct(productId);
     try {
-      const response = await fetch('http://localhost:3003/api/barcode/last-barcode', {
+      const response = await fetch(`${process.env.API_URL}/api/barcode/last-barcode`, {
         mode: 'cors',
         credentials: 'include'
       });

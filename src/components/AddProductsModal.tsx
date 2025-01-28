@@ -65,8 +65,6 @@ interface AddProductsModalProps {
   loadProducts: Product[]
 }
 
-const server = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3003';
-
 export function AddProductsModal({ isOpen, onOpenChange, onAddProduct, warehouseId, loadProducts }: AddProductsModalProps) {
   const [modalState, setModalState] = useState({
     products: [] as Product[],
@@ -95,13 +93,13 @@ export function AddProductsModal({ isOpen, onOpenChange, onAddProduct, warehouse
         sizesData,
         availabilityData
       ] = await Promise.all([
-        fetch(`${server}/api/products?${new URLSearchParams({
+        fetch(`${process.env.API_URL}/api/products?${new URLSearchParams({
           search: modalSearchTerm,
           filters: JSON.stringify(modalState.selectedFilters)
         }).toString()}`).then(res => res.json()),
-        fetch(`${server}/api/brands`).then(res => res.json()),
-        fetch(`${server}/api/sizes`).then(res => res.json()),
-        fetch(`${server}/api/product-availability/warehouse/${warehouseId}`).then(res => res.json())
+        fetch(`${process.env.API_URL}/api/brands`).then(res => res.json()),
+        fetch(`${process.env.API_URL}/api/sizes`).then(res => res.json()),
+        fetch(`${process.env.API_URL}/api/product-availability/warehouse/${warehouseId}`).then(res => res.json())
       ]);
 
       // Mappa delle disponibilità per prodotto

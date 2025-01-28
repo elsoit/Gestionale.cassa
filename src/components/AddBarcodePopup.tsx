@@ -129,7 +129,7 @@ export default function AddBarcodePopup({
   const generateBarcode = async () => {
     setIsGenerating(true)
     try {
-      const response = await fetch('http://localhost:3003/api/barcode/last-barcode', {
+      const response = await fetch(`${process.env.API_URL}/api/barcode/last-barcode`, {
         mode: 'cors',
         credentials: 'include'
       });

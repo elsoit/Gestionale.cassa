@@ -60,8 +60,6 @@ interface ProductDialogProps {
   isDuplicating?: boolean
 }
 
-const server = 'http://localhost:3003'
-
 const ProductDialog = ({
   product,
   isOpen,
@@ -105,7 +103,7 @@ const ProductDialog = ({
         console.log('Fetching parameters...');
         
         // Fetch parameters with attributes
-        const parametersResponse = await fetch(`${server}/api/product-attributes/parameters`, {
+        const parametersResponse = await fetch(`${process.env.API_URL}/api/product-attributes/parameters`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json'
@@ -144,7 +142,7 @@ const ProductDialog = ({
         // If editing a product, fetch its attributes
         if (product?.id) {
           console.log('Fetching product attributes for product:', product.id)
-          const productAttributesResponse = await fetch(`${server}/api/product-attributes/product/${product.id}`, {
+          const productAttributesResponse = await fetch(`${process.env.API_URL}/api/product-attributes/product/${product.id}`, {
             method: 'GET',
             headers: {
               'Content-Type': 'application/json'
@@ -176,7 +174,7 @@ const ProductDialog = ({
         }
 
         // Fetch brands
-        const brandsResponse = await fetch(`${server}/api/brands`, {
+        const brandsResponse = await fetch(`${process.env.API_URL}/api/brands`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json'
@@ -187,7 +185,7 @@ const ProductDialog = ({
         setBrands(brandsData || [])
 
         // Fetch size groups
-        const sizeGroupsResponse = await fetch(`${server}/api/size-groups`, {
+        const sizeGroupsResponse = await fetch(`${process.env.API_URL}/api/size-groups`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json'
@@ -198,7 +196,7 @@ const ProductDialog = ({
         setSizeGroups(sizeGroupsData || [])
 
         // Fetch product statuses
-        const statusesResponse = await fetch(`${server}/api/statuses/field/Products`, {
+        const statusesResponse = await fetch(`${process.env.API_URL}/api/statuses/field/Products`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json'
@@ -278,7 +276,7 @@ const ProductDialog = ({
     if (formData.size_group_id) {
       const fetchSizes = async () => {
         try {
-          const response = await fetch(`${server}/api/size-group-sizes/${formData.size_group_id}/sizes`, {
+          const response = await fetch(`${process.env.API_URL}/api/size-group-sizes/group/${formData.size_group_id}/sizes`, {
             method: 'GET',
             headers: {
               'Content-Type': 'application/json'
@@ -482,7 +480,7 @@ const ProductDialog = ({
 
       console.log('Products to create:', products);
 
-      const response = await fetch(`${server}/api/products`, {
+      const response = await fetch(`${process.env.API_URL}/api/products`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -514,7 +512,7 @@ const ProductDialog = ({
 
   useEffect(() => {
     if (product?.id) {
-      fetch(`${server}/api/product-attributes/${product.id}`, {
+      fetch(`${process.env.API_URL}/api/product-attributes/${product.id}`, {
         credentials: 'include'
       })
         .then(res => res.json())
@@ -545,7 +543,7 @@ const ProductDialog = ({
 
   const createAttribute = async (parameterId: string, attributeName: string) => {
     try {
-      const response = await fetch(`${server}/api/attributes`, {
+      const response = await fetch(`${process.env.API_URL}/api/attributes`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -571,7 +569,7 @@ const ProductDialog = ({
 
   const fetchSizes = async (groupId: string) => {
     try {
-      const response = await fetch(`${server}/api/sizes/group/${groupId}`);
+      const response = await fetch(`${process.env.API_URL}/api/sizes/group/${groupId}`);
       if (!response.ok) throw new Error('Failed to fetch sizes');
       const sizes = await response.json();
       setAvailableSizes(sizes);
