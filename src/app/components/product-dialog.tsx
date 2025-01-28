@@ -60,6 +60,7 @@ interface ProductDialogProps {
   isDuplicating?: boolean
 }
 
+
 const ProductDialog = ({
   product,
   isOpen,
@@ -276,7 +277,7 @@ const ProductDialog = ({
     if (formData.size_group_id) {
       const fetchSizes = async () => {
         try {
-          const response = await fetch(`${process.env.API_URL}/api/size-group-sizes/group/${formData.size_group_id}/sizes`, {
+          const response = await fetch(`${process.env.API_URL}/api/size-group-sizes/${formData.size_group_id}/sizes`, {
             method: 'GET',
             headers: {
               'Content-Type': 'application/json'
@@ -566,15 +567,10 @@ const ProductDialog = ({
       throw error;
     }
   };
+
   const fetchSizes = async (groupId: string) => {
     try {
-      const response = await fetch(`${process.env.API_URL}/api/sizes/group/${groupId}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        credentials: 'include'
-      });
+      const response = await fetch(`${process.env.API_URL}/api/sizes/group/${groupId}`);
       if (!response.ok) throw new Error('Failed to fetch sizes');
       const sizes = await response.json();
       setAvailableSizes(sizes);
