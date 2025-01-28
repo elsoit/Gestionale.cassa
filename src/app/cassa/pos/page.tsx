@@ -23,8 +23,6 @@ import type {
   GroupedItems
 } from './@types'
 
-const server = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3003';
-
 // UI Components imports
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -123,7 +121,7 @@ const clients = [
 // Aggiungi questa funzione prima del componente principale
 const fetchMainPhoto = async (article_code: string, variant_code: string) => {
   try {
-    const response = await fetch(`${server}/api/products/photos/${article_code}/${variant_code}/main`);
+    const response = await fetch(`${process.env.API_URL}/api/products/photos/${article_code}/${variant_code}/main`);
     if (!response.ok) return null;
     const data = await response.json();
     return data?.url || null;
@@ -301,7 +299,7 @@ export default function POSSystem() {
         
         // Ottieni tutti i punti vendita
         console.log('Recupero tutti i punti vendita');
-        const response = await fetch(`${server}/api/punti-vendita`);
+        const response = await fetch(`${process.env.API_URL}/api/punti-vendita`);
         if (!response.ok) throw new Error('Network response was not ok');
         const allPuntiVendita = await response.json();
         
@@ -447,7 +445,7 @@ export default function POSSystem() {
   const generateOrderNumber = async () => {
     try {
       console.log('Generating order number with frozen orders:', frozenOrders);
-      const response = await fetch(`${server}/api/orders/generate-number`, {
+      const response = await fetch(`${process.env.API_URL}/api/orders/generate-number`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -517,7 +515,7 @@ export default function POSSystem() {
   const addToCart = async (product: Product) => {
     try {
       // Verifica la disponibilità del prodotto
-      const productQuantityResponse = await fetch(`${server}/api/product-availability/product/${product.id}/warehouse/${selectedPuntoVendita?.warehouse_id}`);
+      const productQuantityResponse = await fetch(`${process.env.API_URL}/api/product-availability/product/${product.id}/warehouse/${selectedPuntoVendita?.warehouse_id}`);
       if (!productQuantityResponse.ok) {
         toast({
           title: "Errore",
@@ -652,7 +650,7 @@ export default function POSSystem() {
 
     if (action === 'increase') {
       // Verifica disponibilità prima di aumentare
-      const response = await fetch(`${server}/api/product-availability/product/${productId}/warehouse/${selectedPuntoVendita?.warehouse_id}`);
+      const response = await fetch(`${process.env.API_URL}/api/product-availability/product/${productId}/warehouse/${selectedPuntoVendita?.warehouse_id}`);
       if (!response.ok) {
         toast({
           title: "Errore",
@@ -1281,7 +1279,7 @@ export default function POSSystem() {
           status_id: totalSelected >= finalTotal || !isPartialPayment ? 18 : 17, // Saldato se totale raggiunto OR non è pagamento parziale
         };
 
-        const orderResponse = await fetch(`http://localhost:3003/api/orders/${currentOrderId}`, {
+        const orderResponse = await fetch(`${process.env.API_URL}/api/orders/${currentOrderId}`, {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
@@ -1312,8 +1310,7 @@ export default function POSSystem() {
             charge_date: new Date().toISOString(),
             status_id: 6
           };
-
-          const paymentResponse = await fetch('http://localhost:3003/api/order-payments', {
+          const paymentResponse = await fetch(`${process.env.API_URL}/api/order-payments`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -1338,7 +1335,7 @@ export default function POSSystem() {
           tax: tax
         };
 
-        const orderResponse = await fetch(`${server}/api/orders`, {
+        const orderResponse = await fetch(`${process.env.API_URL}/api/orders`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(orderData)
@@ -1358,8 +1355,7 @@ export default function POSSystem() {
             order_id: newOrderId,
             ...item
           };
-
-          const itemResponse = await fetch('http://localhost:3003/api/order-items', {
+          const itemResponse = await fetch(`${process.env.API_URL}/api/order-items`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -1397,8 +1393,7 @@ export default function POSSystem() {
             charge_date: new Date().toISOString(),
             status_id: 6
           };
-
-          const paymentResponse = await fetch('http://localhost:3003/api/order-payments', {
+          const paymentResponse = await fetch(`${process.env.API_URL}/api/order-payments`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(paymentData)
@@ -1425,7 +1420,7 @@ export default function POSSystem() {
           })
 
           // Aggiorna il voucher esistente - CORRETTO L'ENDPOINT
-          const updateVoucherResponse = await fetch(`${server}/api/vouchers/update`, {
+          const updateVoucherResponse = await fetch(`${process.env.API_URL}/api/vouchers/update`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -1447,7 +1442,7 @@ export default function POSSystem() {
           if (!isFullyUsed) {
             const remainingAmount = voucherTotal - totalToPay
             
-            const createVoucherResponse = await fetch(`${server}/api/vouchers`, {
+            const createVoucherResponse = await fetch(`${process.env.API_URL}/api/vouchers`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
@@ -1466,7 +1461,7 @@ export default function POSSystem() {
 
         // Aggiorno le disponibilità nel magazzino
         for (const item of cart) {
-          const updateAvailabilityResponse = await fetch(`http://localhost:3003/api/product-availability/update`, {
+          const updateAvailabilityResponse = await fetch(`${process.env.API_URL}/api/product-availability/update`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -1899,7 +1894,7 @@ export default function POSSystem() {
       if (!selectedPuntoVendita) return [];
       
         const searchParam = reservationSearchTerm ? `?search=${encodeURIComponent(reservationSearchTerm)}` : '';
-      const response = await fetch(`${server}/api/orders/sold-orders/${selectedPuntoVendita.id}${searchParam}`);
+      const response = await fetch(`${process.env.API_URL}/api/orders/sold-orders/${selectedPuntoVendita.id}${searchParam}`);
         
       if (!response.ok) throw new Error('Network response was not ok');
         return response.json();
@@ -1923,7 +1918,7 @@ export default function POSSystem() {
       setIsSaldato(isSaldatoStatus);
       
       // Carica i dettagli dell'ordine usando l'endpoint corretto
-      const orderItemsResponse = await fetch(`${server}/api/order-items/order/${order.id}`);
+      const orderItemsResponse = await fetch(`${process.env.API_URL}/api/order-items/order/${order.id}`);
       if (!orderItemsResponse.ok) throw new Error('Failed to fetch order items');
       const orderItems = await orderItemsResponse.json();
 
@@ -1935,7 +1930,7 @@ export default function POSSystem() {
       }
 
       // Carica i pagamenti precedenti
-      const paymentsResponse = await fetch(`${server}/api/order-payments/order/${order.id}/success`);
+      const paymentsResponse = await fetch(`${process.env.API_URL}/api/order-payments/order/${order.id}/success`);
       if (!paymentsResponse.ok) throw new Error('Failed to fetch payments');
       const payments = await paymentsResponse.json();
       setPreviousPayments(payments);
@@ -1974,13 +1969,13 @@ export default function POSSystem() {
       console.log('Inizio handleReservationPayment per ordine:', currentOrderId);
       
       // Recupera l'ordine con i pagamenti
-      const orderResponse = await fetch(`http://localhost:3003/api/orders/${currentOrderId}`);
+      const orderResponse = await fetch(`${process.env.API_URL}/api/orders/${currentOrderId}`);
       if (!orderResponse.ok) throw new Error('Errore nel recupero dell\'ordine');
       const order = await orderResponse.json();
       console.log('Ordine recuperato:', order);
 
       // Recupera i pagamenti precedenti
-      const paymentsResponse = await fetch(`http://localhost:3003/api/order-payments/order/${currentOrderId}/success`);
+      const paymentsResponse = await fetch(`${process.env.API_URL}/api/order-payments/order/${currentOrderId}/success`);
       if (!paymentsResponse.ok) throw new Error('Errore nel recupero dei pagamenti');
       const previousPayments = await paymentsResponse.json();
       console.log('Pagamenti precedenti:', previousPayments);
@@ -1999,7 +1994,7 @@ export default function POSSystem() {
       // Aggiorna lo stato dell'ordine se necessario
       if (isFullyPaid) {
         console.log('Aggiorno stato ordine a saldato (4)');
-        const orderUpdateResponse = await fetch(`http://localhost:3003/api/orders/${currentOrderId}/status`, {
+        const orderUpdateResponse = await fetch(`${process.env.API_URL}/api/orders/${currentOrderId}/status`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
@@ -2036,7 +2031,7 @@ export default function POSSystem() {
             status_id: 6
           };
 
-          const paymentResponse = await fetch('http://localhost:3003/api/order-payments', {
+          const paymentResponse = await fetch(`${process.env.API_URL}/api/order-payments`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(paymentData)
@@ -2064,7 +2059,7 @@ export default function POSSystem() {
         })
 
         // Aggiorna il voucher esistente
-        const updateVoucherResponse = await fetch(`${server}/api/vouchers/update`, {
+        const updateVoucherResponse = await fetch(`${process.env.API_URL}/api/vouchers/update`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -2086,7 +2081,7 @@ export default function POSSystem() {
         if (!isFullyUsed) {
           const remainingAmount = voucherTotal - totalToPay
           
-          const createVoucherResponse = await fetch(`${server}/api/vouchers`, {
+          const createVoucherResponse = await fetch(`${process.env.API_URL}/api/vouchers`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -2447,7 +2442,7 @@ export default function POSSystem() {
       setCurrentOrderId,
       setIsReservationsDialogOpen: () => {},
       fetchPreviousPayments: async (orderId: number) => {
-        const paymentsResponse = await fetch(`${server}/api/order-payments/order/${orderId}`);
+        const paymentsResponse = await fetch(`${process.env.API_URL}/api/order-payments/order/${orderId}`);
         if (!paymentsResponse.ok) throw new Error('Failed to fetch payments');
         const payments = await paymentsResponse.json();
         setPreviousPayments(payments);
@@ -2456,7 +2451,7 @@ export default function POSSystem() {
         setDeposit(totalAcconti);
       },
       fetchPreviousSuccessfulPayments: async (orderId: number) => {
-        const paymentsResponse = await fetch(`${server}/api/order-payments/order/${orderId}/successful`);
+        const paymentsResponse = await fetch(`${process.env.API_URL}/api/order-payments/order/${orderId}/successful`);
         if (!paymentsResponse.ok) throw new Error('Failed to fetch successful payments');
         const payments = await paymentsResponse.json();
         setPreviousSuccessfulPayments(payments);

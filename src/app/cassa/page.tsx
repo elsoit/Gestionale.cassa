@@ -11,15 +11,13 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import Image from 'next/image'
 
-const server = process.env.API_URL;
-
 const fetchMainPhoto = async (article_code: string, variant_code: string) => {
   try {
     // Normalizza i codici per la ricerca
     const normalizedArticleCode = article_code.replace(/\s+/g, '').toLowerCase();
     const normalizedVariantCode = variant_code.replace(/\s+/g, '').toLowerCase();
     
-    const response = await fetch(`${server}/api/products/photos/${normalizedArticleCode}/${normalizedVariantCode}/main`);
+    const response = await fetch(`${process.env.API_URL}/api/products/photos/${normalizedArticleCode}/${normalizedVariantCode}/main`);
     if (!response.ok) return null;
     const photo = await response.json();
     

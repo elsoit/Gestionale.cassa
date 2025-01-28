@@ -1,7 +1,5 @@
 import { type RefundMethod } from '../components/ReturnModal'
 
-const server = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3003';
-
 interface HandleReturnParams {
   orderId: number
   warehouseId: number
@@ -41,14 +39,14 @@ export async function handleReturn({
 
     try {
       // 1. Recupera gli order items prima di fare qualsiasi modifica
-      const orderItemsResponse = await fetch(`${server}/api/order-items/order/${orderId}`)
+      const orderItemsResponse = await fetch(`${process.env.API_URL}/api/order-items/order/${orderId}`)
       if (!orderItemsResponse.ok) {
         throw new Error('Errore durante il recupero degli items dell\'ordine')
       }
       const orderItems = await orderItemsResponse.json()
 
       // 2. Aggiorna lo stato dell'ordine a "Reso" (id: 20) o "Reso Parzialmente" (id: 26)
-      const updateOrderResponse = await fetch(`${server}/api/order-cancellation/orders/${orderId}/status`, {
+      const updateOrderResponse = await fetch(`${process.env.API_URL}/api/order-cancellation/orders/${orderId}/status`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -91,7 +89,7 @@ export async function handleReturn({
             deleted: true
           });
 
-          await fetch(`${server}/api/order-items/${item.id}/update`, {
+          await fetch(`${process.env.API_URL}/api/order-items/${item.id}/update`, {
             method: 'PATCH',
             headers: {
               'Content-Type': 'application/json',
@@ -120,7 +118,7 @@ export async function handleReturn({
             deleted: false
           });
 
-          await fetch(`${server}/api/order-items/${item.id}/update`, {
+          await fetch(`${process.env.API_URL}/api/order-items/${item.id}/update`, {
             method: 'PATCH',
             headers: {
               'Content-Type': 'application/json',
@@ -144,7 +142,7 @@ export async function handleReturn({
             deleted: true
           });
 
-          await fetch(`${server}/api/order-items/create`, {
+          await fetch(`${process.env.API_URL}/api/order-items/create`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -168,7 +166,7 @@ export async function handleReturn({
       // 3. Gestione dei pagamenti in base al tipo di reso
       if (!isPartialReturn) {
         // Per reso totale: marca tutti i pagamenti come cancelled
-        const updatePaymentsResponse = await fetch(`${server}/api/order-cancellation/order-payments/${orderId}/update-status`, {
+        const updatePaymentsResponse = await fetch(`${process.env.API_URL}/api/order-cancellation/order-payments/${orderId}/update-status`, {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
@@ -185,7 +183,7 @@ export async function handleReturn({
       } else {
         // Per reso parziale:
         // 1. Marca i pagamenti esistenti come cancelled
-        await fetch(`${server}/api/order-cancellation/order-payments/${orderId}/update-status`, {
+        await fetch(`${process.env.API_URL}/api/order-cancellation/order-payments/${orderId}/update-status`, {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
@@ -225,7 +223,7 @@ export async function handleReturn({
           status_id: 6 // Pagamento completato
         };
 
-        const createPaymentResponse = await fetch(`${server}/api/order-payments`, {
+        const createPaymentResponse = await fetch(`${process.env.API_URL}/api/order-payments`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -249,7 +247,7 @@ export async function handleReturn({
         console.log(`Prodotto ID: ${item.product_id}`);
         console.log(`Quantità da stornare: ${returnQuantity}`);
 
-        const updateStockResponse = await fetch(`${server}/api/product-availability/update`, {
+        const updateStockResponse = await fetch(`${process.env.API_URL}/api/product-availability/update`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -265,7 +263,7 @@ export async function handleReturn({
         if (!updateStockResponse.ok) {
           // Se l'aggiornamento del magazzino fallisce, ripristina le quantità già aggiornate
           for (const update of completedStockUpdates) {
-            await fetch(`${server}/api/product-availability/update`, {
+            await fetch(`${process.env.API_URL}/api/product-availability/update`, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
@@ -304,7 +302,7 @@ export async function handleReturn({
         console.log('\n=== CREAZIONE VOUCHER ===');
         console.log('Totale articoli resi:', voucherAmount);
 
-        const createVoucherResponse = await fetch(`${server}/api/vouchers`, {
+        const createVoucherResponse = await fetch(`${process.env.API_URL}/api/vouchers`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -326,7 +324,7 @@ export async function handleReturn({
       // Se qualsiasi operazione fallisce dopo l'aggiornamento del magazzino,
       // ripristina le quantità
       for (const update of completedStockUpdates) {
-        await fetch(`${server}/api/product-availability/update`, {
+        await fetch(`${process.env.API_URL}/api/product-availability/update`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
