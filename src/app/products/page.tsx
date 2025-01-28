@@ -1322,7 +1322,8 @@ function TableContent() {
                           onImageClick={handleImageClick}
                         />
                       </TableCell>
-                      <TableCell className="font-medium">
+                      <TableCell className="font-medium cursor-pointer hover:text-primary transition-colors" 
+                        onClick={() => router.push(`/products/${group.article_code}/${group.variant_code}`)}>
                         {highlightSearchTerm(group.article_code?.toUpperCase() || '', searchTerm)}
                       </TableCell>
                       <TableCell>
@@ -1525,7 +1526,8 @@ function TableContent() {
                           onImageClick={handleImageClick}
                         />
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="font-medium cursor-pointer hover:text-primary transition-colors"
+                        onClick={() => router.push(`/products/${product.article_code}/${product.variant_code}`)}>
                         {highlightSearchTerm(product.article_code?.toUpperCase() || '', searchTerm)}
                       </TableCell>
                       <TableCell>
