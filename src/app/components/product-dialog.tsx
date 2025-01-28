@@ -566,10 +566,15 @@ const ProductDialog = ({
       throw error;
     }
   };
-
   const fetchSizes = async (groupId: string) => {
     try {
-      const response = await fetch(`${process.env.API_URL}/api/sizes/group/${groupId}`);
+      const response = await fetch(`${process.env.API_URL}/api/sizes/group/${groupId}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include'
+      });
       if (!response.ok) throw new Error('Failed to fetch sizes');
       const sizes = await response.json();
       setAvailableSizes(sizes);
