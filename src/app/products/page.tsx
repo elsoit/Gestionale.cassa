@@ -157,6 +157,27 @@ interface Parameter {
   }>;
 }
 
+interface DeleteResponse {
+  details: {
+    deletedCount: number;
+    statusChangedCount: number;
+    errorCount: number;
+  };
+  results: {
+    deleted: Product[];
+    statusChanged: Product[];
+    errors: Array<{ id: number; error: string }>;
+    usage: {
+      [key: number]: {
+        canDelete: boolean;
+        hasLoadings: boolean;
+        hasAvailability: boolean;
+        hasOrders: boolean;
+      }
+    }
+  };
+}
+
 const sizeOrder = ['XXS', 'XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL'];
 
 function compareSizes(a: string, b: string): number {
@@ -309,6 +330,7 @@ function TableContent() {
     }
   })
   const [isGroupedView, setIsGroupedView] = useState(true)
+  const [showDeleted, setShowDeleted] = useState(false)
 
   const [priceRanges, setPriceRanges] = useState<PriceRanges>(() => {
     try {
@@ -572,26 +594,93 @@ function TableContent() {
   }
 
   const handleDeleteProduct = async () => {
-    if (!selectedProduct) return
+    if (!selectedProduct) return;
 
     try {
+      const isGroup = isGroupedView && selectedProduct.article_code;
       const response = await fetch(`${process.env.API_URL}/api/products/${selectedProduct.id}`, {
         method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          isGroupDelete: isGroup,
+          groupInfo: isGroup ? {
+            article_code: selectedProduct.article_code,
+            variant_code: selectedProduct.variant_code,
+            status_id: selectedProduct.status_id
+          } : null
+        }),
         mode: 'cors',
         credentials: 'include'
-      })
+      });
 
       if (!response.ok) {
-        throw new Error('Failed to delete product')
+        throw new Error('Failed to delete product');
       }
 
-      await fetchData()
-      setIsDeleteDialogOpen(false)
+      const result = await response.json() as DeleteResponse;
+      
+      // Mostra il toast appropriato basato sul risultato
+      if (result.details.deletedCount > 0 || result.details.statusChangedCount > 0) {
+        let message = '';
+        
+        // Costruisci il messaggio dettagliato per i prodotti disattivati
+        if (result.details.statusChangedCount > 0) {
+          const reasons = [];
+          const products = result.results.statusChanged;
+          
+          // Raggruppa i prodotti per motivo di disattivazione
+          const productsWithLoadings = products.filter(p => result.results.usage[p.id]?.hasLoadings);
+          const productsWithAvailability = products.filter(p => result.results.usage[p.id]?.hasAvailability);
+          const productsWithOrders = products.filter(p => result.results.usage[p.id]?.hasOrders);
+          
+          if (productsWithLoadings.length > 0) {
+            reasons.push(`${productsWithLoadings.length} presenti in carichi`);
+          }
+          if (productsWithAvailability.length > 0) {
+            reasons.push(`${productsWithAvailability.length} con disponibilità`);
+          }
+          if (productsWithOrders.length > 0) {
+            reasons.push(`${productsWithOrders.length} presenti in ordini`);
+          }
+          
+          message = `${result.details.statusChangedCount} prodotti disattivati (${reasons.join(', ')})`;
+        }
+        
+        // Aggiungi informazioni sui prodotti eliminati
+        if (result.details.deletedCount > 0) {
+          message = message ? 
+            `${result.details.deletedCount} prodotti eliminati e ${message}` :
+            `${result.details.deletedCount} prodotti eliminati con successo`;
+        }
+        
+        toast({
+          title: "Operazione completata",
+          description: message,
+          variant: "default"
+        });
+      }
+
+      if (result.details.errorCount > 0) {
+        toast({
+          title: "Attenzione",
+          description: `Si sono verificati ${result.details.errorCount} errori durante l'operazione`,
+          variant: "destructive"
+        });
+      }
+
+      await fetchData();
+      setIsDeleteDialogOpen(false);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to delete product. Please try again.')
-      console.error('Delete error:', e)
+      console.error('Delete error:', e);
+      toast({
+        title: "Errore",
+        description: "Si è verificato un errore durante l'eliminazione",
+        variant: "destructive"
+      });
     }
-  }
+  };
 
   const fetchProductBarcodes = async (productId: number): Promise<Barcode[]> => {
     try {
@@ -663,12 +752,15 @@ function TableContent() {
     }
   };
 
-  const handleEdit = async (product: Product) => {
+  const handleEdit = async (product: Product | ProductGroup) => {
     try {
-      console.log('handleEdit called with product:', product);
+      console.log('handleEdit called with:', product);
+      
+      // Se è un gruppo con un solo prodotto, ottieni l'ID del prodotto singolo
+      const productId = 'products' in product ? product.products[0].id : product.id;
       
       // Carica i dati completi del prodotto
-      const response = await fetch(`${process.env.API_URL}/api/products/${product.id}`, {
+      const response = await fetch(`${process.env.API_URL}/api/products/${productId}`, {
         mode: 'cors',
         credentials: 'include'
       });
@@ -766,9 +858,32 @@ function TableContent() {
   };
 
   const handleDelete = async (item: Product | ProductGroup) => {
-    setSelectedProduct('id' in item ? item : null)
-    setIsDeleteDialogOpen(true)
-  }
+    // Se è un gruppo, prendiamo il primo prodotto come riferimento
+    if ('products' in item) {
+      setSelectedProduct({
+        id: item.products[0].id,
+        article_code: item.article_code,
+        variant_code: item.variant_code,
+        status_id: item.status_id,
+        // Aggiungiamo altri campi necessari
+        size_id: item.products[0].size_id,
+        size_name: item.products[0].size_name,
+        wholesale_price: item.wholesale_price,
+        retail_price: item.retail_price,
+        brand_id: item.brand_id,
+        brand_name: item.brand_name,
+        size_group_id: item.size_group_id,
+        size_group_name: item.size_group_name,
+        attributes: item.attributes,
+        total_availability: item.total_availability,
+        photos: [],
+        main_photo: item.main_photo
+      });
+    } else {
+      setSelectedProduct(item);
+    }
+    setIsDeleteDialogOpen(true);
+  };
 
   const groupProducts = (products: Product[]): ProductGroup[] => {
     const groups = products.reduce((acc: Record<string, ProductGroup>, product: Product) => {
@@ -898,12 +1013,26 @@ function TableContent() {
     setIsPhotoGalleryOpen(true);
   };
 
+  // Funzione per filtrare i prodotti eliminati
+  const filterProducts = (products: Product[]) => {
+    if (showDeleted) return products;
+    return products.filter(p => p.status_name?.toLowerCase() !== 'deleted');
+  };
+
   return (
     <div className="container mx-auto py-10">
       {/* Header principale */}
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Gestione Prodotti</h1>
         <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <Label htmlFor="show-deleted" className="text-sm text-muted-foreground">Mostra Eliminati</Label>
+            <Switch
+              id="show-deleted"
+              checked={showDeleted}
+              onCheckedChange={setShowDeleted}
+            />
+          </div>
           <div className="flex items-center gap-2">
             <Label htmlFor="view-mode" className="text-sm text-muted-foreground">Vista Raggruppata</Label>
             <Switch
@@ -1151,7 +1280,7 @@ function TableContent() {
             </TableHeader>
             <TableBody>
               {isGroupedView ? (
-                groupProducts(products)
+                groupProducts(filterProducts(products))
                 .sort((a, b) => {
                   // Prima ordina per data più recente
                   const updatedAtA = new Date(a.updated_at || a.created_at || '').getTime();
@@ -1256,7 +1385,9 @@ function TableContent() {
                         <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
                           group.status_name?.toLowerCase() === 'active' 
                             ? 'bg-green-100 text-green-800'
-                            : 'bg-red-100 text-red-800'
+                            : group.status_name?.toLowerCase() === 'deleted'
+                              ? 'bg-red-600 text-white'
+                              : 'bg-red-100 text-red-800'
                         }`}>
                           {group.status_name || 'N/A'}
                         </span>
@@ -1273,13 +1404,11 @@ function TableContent() {
                             <DropdownMenuContent align="end">
                               <DropdownMenuItem
                                 onClick={() => {
-                                  const count = countProductsInGroup(group);
-                                  if (count >= 2) {
-                                    handleGroupEdit(group);
-                                  } else {
-                                    const singleProduct = findSingleProduct(group);
-                                    if (singleProduct) {
-                                      handleEdit(singleProduct);
+                                  if ('products' in group) {
+                                    if (group.products.length === 1) {
+                                      handleEdit(group);
+                                    } else {
+                                      handleGroupEdit(group);
                                     }
                                   }
                                 }}
@@ -1324,7 +1453,7 @@ function TableContent() {
                   );
                 })
               ) : (
-                products
+                filterProducts(products)
                 .sort((a, b) => {
                   // Crea una mappa delle date più recenti per ogni combinazione articolo-variante
                   const getLatestDate = (product: Product) => {
@@ -1453,7 +1582,9 @@ function TableContent() {
                         <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
                           product.status_name?.toLowerCase() === 'active' 
                             ? 'bg-green-100 text-green-800'
-                            : 'bg-red-100 text-red-800'
+                            : product.status_name?.toLowerCase() === 'deleted'
+                              ? 'bg-red-600 text-white'
+                              : 'bg-red-100 text-red-800'
                         }`}>
                           {product.status_name || 'N/A'}
                         </span>
@@ -1567,14 +1698,39 @@ function TableContent() {
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Confirm Deletion</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete this product? This action cannot be undone.
+            <DialogTitle>Conferma Eliminazione</DialogTitle>
+            <DialogDescription className="space-y-2">
+              {isGroupedView ? (
+                <>
+                  <p>Stai per eliminare tutti i prodotti di questo gruppo.</p>
+                  <p>I prodotti verranno:</p>
+                  <ul className="list-disc pl-6 space-y-1">
+                    <li>Eliminati completamente se non sono mai stati utilizzati</li>
+                    <li>Disattivati se sono presenti in carichi</li>
+                    <li>Disattivati se hanno disponibilità</li>
+                    <li>Disattivati se sono presenti in ordini</li>
+                  </ul>
+                </>
+              ) : (
+                <>
+                  <p>Stai per eliminare questo prodotto.</p>
+                  <p>Il prodotto verrà:</p>
+                  <ul className="list-disc pl-6 space-y-1">
+                    <li>Eliminato completamente se non è mai stato utilizzato</li>
+                    <li>Disattivato se è presente in carichi</li>
+                    <li>Disattivato se ha disponibilità</li>
+                    <li>Disattivato se è presente in ordini</li>
+                  </ul>
+                </>
+              )}
+              <p className="text-sm text-muted-foreground mt-4">
+                Questa operazione non può essere annullata.
+              </p>
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>Cancel</Button>
-            <Button variant="destructive" onClick={handleDeleteProduct}>Delete</Button>
+            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>Annulla</Button>
+            <Button variant="destructive" onClick={handleDeleteProduct}>Elimina</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

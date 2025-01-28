@@ -244,7 +244,6 @@ export default function LoadDetailPage() {
   const [originalProducts, setOriginalProducts] = useState<LoadProduct[]>([]);
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
   // Stato per i filtri e i prodotti della modale
   const [modalState, setModalState] = useState({
@@ -943,6 +942,7 @@ export default function LoadDetailPage() {
         break
     }
     setSelectedAction(null)
+    setIsDialogOpen(false)
   }
 
   const handleRevokeLoad = async () => {
@@ -975,12 +975,10 @@ export default function LoadDetailPage() {
       })
     } finally {
       setIsRevoking(false)
+      setIsDialogOpen(false)
+      setSelectedAction(null)
     }
   }
-
-  const handleDeleteClick = () => {
-    setIsDeleteDialogOpen(true);
-  };
 
   const handleDeleteLoad = async () => {
     if (!load || isDeleting) return;
@@ -1020,7 +1018,7 @@ export default function LoadDetailPage() {
       });
     } finally {
       setIsDeleting(false);
-      setIsDeleteDialogOpen(false);
+      setIsDialogOpen(false);
     }
   };
 
@@ -1571,19 +1569,25 @@ export default function LoadDetailPage() {
               {load.status_id === 9 && (
                 <>
                   <Button
-                      onClick={handleConfirmLoad}
+                    onClick={() => {
+                      setSelectedAction('confirm');
+                      setIsDialogOpen(true);
+                    }}
                     disabled={isConfirming || loadProducts.length === 0}
                     variant="default"
-                      className="bg-green-600 hover:bg-green-700 font-medium"
+                    className="bg-green-600 hover:bg-green-700 font-medium"
                   >
                     {isConfirming ? "Confermando..." : "Conferma Carico"}
                   </Button>
                   <Button
-                      onClick={handleDeleteClick}
+                    onClick={() => {
+                      setSelectedAction('delete');
+                      setIsDialogOpen(true);
+                    }}
                     disabled={isDeleting}
                     variant="ghost"
                     size="icon"
-                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
                   >
                     <Trash2 className="h-5 w-5" />
                   </Button>
@@ -1591,7 +1595,10 @@ export default function LoadDetailPage() {
               )}
                 {load.status_id === 10 && (
                   <Button
-                    onClick={handleRevokeLoad}
+                    onClick={() => {
+                      setSelectedAction('revoke');
+                      setIsDialogOpen(true);
+                    }}
                     disabled={isRevoking}
                     variant="destructive"
                   >
@@ -1601,19 +1608,25 @@ export default function LoadDetailPage() {
               {load.status_id === 11 && (
                 <>
                   <Button
-                      onClick={handleConfirmLoad}
+                    onClick={() => {
+                      setSelectedAction('confirm');
+                      setIsDialogOpen(true);
+                    }}
                     disabled={isConfirming || loadProducts.length === 0}
                     variant="default"
-                      className="bg-green-600 hover:bg-green-700 font-medium"
+                    className="bg-green-600 hover:bg-green-700 font-medium"
                   >
                     {isConfirming ? "Confermando..." : "Riconferma Carico"}
                   </Button>
                   <Button
-                      onClick={handleDeleteLoad}
+                    onClick={() => {
+                      setSelectedAction('delete');
+                      setIsDialogOpen(true);
+                    }}
                     disabled={isDeleting}
                     variant="ghost"
                     size="icon"
-                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
                   >
                     <Trash2 className="h-5 w-5" />
                   </Button>
@@ -1652,38 +1665,66 @@ export default function LoadDetailPage() {
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Conferma Annullamento</DialogTitle>
+            <DialogTitle>
+              {selectedAction === 'confirm' && (load.status_id === 9 ? 'Conferma Carico' : 'Riconferma Carico')}
+              {selectedAction === 'revoke' && 'Conferma Revoca'}
+              {selectedAction === 'delete' && 'Conferma Cancellazione'}
+            </DialogTitle>
             <DialogDescription>
-              Sei sicuro di voler annullare tutte le modifiche?
+              {selectedAction === 'confirm' && (
+                <>
+                  <p>{load.status_id === 9 ? 'Stai per confermare questo carico.' : 'Stai per riconfermare questo carico.'}</p>
+                  <p>Questa operazione:</p>
+                  <ul className="list-disc pl-6 space-y-1">
+                    <li>Aggiungerà la disponibilità dei prodotti al magazzino</li>
+                    <li>Renderà il carico non più modificabile</li>
+                  </ul>
+                  <p className="text-sm text-muted-foreground mt-4">
+                    Sei sicuro di voler procedere?
+                  </p>
+                </>
+              )}
+              {selectedAction === 'revoke' && (
+                <>
+                  <p>Stai per revocare questo carico.</p>
+                  <p>Questa operazione:</p>
+                  <ul className="list-disc pl-6 space-y-1">
+                    <li>Rimuoverà la disponibilità dei prodotti dal magazzino</li>
+                    <li>Riporterà il carico in stato di bozza</li>
+                  </ul>
+                  <p className="text-sm text-muted-foreground mt-4">
+                    Sei sicuro di voler procedere?
+                  </p>
+                </>
+              )}
+              {selectedAction === 'delete' && (
+                <>
+                  <p>Stai per cancellare questo carico.</p>
+                  <p>Questa operazione:</p>
+                  <ul className="list-disc pl-6 space-y-1">
+                    <li>Rimuoverà definitivamente il carico dal sistema</li>
+                    <li>Tutte le modifiche non salvate andranno perse</li>
+                  </ul>
+                  <p className="text-sm text-muted-foreground mt-4">
+                    Questa operazione non può essere annullata. Sei sicuro di voler procedere?
+                  </p>
+                </>
+              )}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
-              No, mantieni
+              Annulla
             </Button>
-            <Button variant="destructive" onClick={handleConfirmCancel}>
-              Sì, annulla
+            <Button 
+              variant="destructive" 
+              onClick={handleConfirmAction}
+              disabled={isConfirming || isRevoking || isDeleting}
+            >
+              {selectedAction === 'confirm' && (isConfirming ? "Confermando..." : load.status_id === 9 ? "Conferma" : "Riconferma")}
+              {selectedAction === 'revoke' && (isRevoking ? "Revocando..." : "Revoca")}
+              {selectedAction === 'delete' && (isDeleting ? "Cancellando..." : "Cancella")}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Modale di conferma cancellazione */}
-      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Conferma Cancellazione</DialogTitle>
-            <DialogDescription>
-              Sei sicuro di voler cancellare questo carico? Tutte le modifiche non salvate andranno perse.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
-              No, mantieni
-                      </Button>
-            <Button variant="destructive" onClick={handleDeleteLoad}>
-              Sì, cancella
-                      </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
