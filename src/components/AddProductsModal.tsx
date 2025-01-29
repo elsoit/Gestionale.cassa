@@ -84,7 +84,7 @@ export function AddProductsModal({ isOpen, onOpenChange, onAddProduct, warehouse
   const [modalSearchTerm, setModalSearchTerm] = useState('')
 
   // Funzione per caricare i dati della modale
-  const loadModalData = async () => {
+  const loadModalData = useCallback(async () => {
     setModalState(prev => ({ ...prev, isLoading: true }))
     try {
       const [
@@ -159,7 +159,7 @@ export function AddProductsModal({ isOpen, onOpenChange, onAddProduct, warehouse
       console.error('Error loading modal data:', error)
       setModalState(prev => ({ ...prev, isLoading: false }))
     }
-  }
+  }, [])
 
   // Carica i dati quando si apre la modale
   React.useEffect(() => {
@@ -245,10 +245,11 @@ export function AddProductsModal({ isOpen, onOpenChange, onAddProduct, warehouse
   }, [applyFilters, modalSearchTerm, modalState.selectedFilters]);
 
   // Handler per il cambio della ricerca nella modale
+
   const handleModalSearch = useCallback((value: string) => {
-    setModalSearchTerm(value);
-    applyFilters(modalState.selectedFilters, value);
-  }, [applyFilters, modalState.selectedFilters]);
+   setModalSearchTerm(value);
+     applyFilters(modalState.selectedFilters, value);
+      }, [applyFilters, modalState.selectedFilters]);
 
   const groupProducts = (products: Product[]) => {
     const groupedMap = new Map<string, { article_code: string; variant_code: string; sizes: Product[] }>();
@@ -653,3 +654,4 @@ export function AddProductsModal({ isOpen, onOpenChange, onAddProduct, warehouse
     </Dialog>
   )
 } 
+

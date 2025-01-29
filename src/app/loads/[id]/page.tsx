@@ -1056,7 +1056,7 @@ export default function LoadDetailPage() {
   const isLoadDisabled = isLoadConfirmed || isLoadCancelled;
 
   // Funzione per caricare i dati della modale
-  const loadModalData = async () => {
+  const loadModalData = useCallback(async () => {
     setModalState(prev => ({ ...prev, isLoading: true }))
     try {
       if (!load) return;
@@ -1140,7 +1140,7 @@ export default function LoadDetailPage() {
       })
       setModalState(prev => ({ ...prev, isLoading: false }))
     }
-  }
+  }, [])
 
   // Carica i dati quando si apre la modale
   useEffect(() => {
