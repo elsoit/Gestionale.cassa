@@ -930,6 +930,23 @@ export default function BulkPage() {
       })
     } catch (error) {
       console.error('Errore upload:', error)
+      
+      // Genera e scarica il report anche in caso di errori
+      if (results.length > 0) {
+        const csvContent = generateCSVReport(results)
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+        const link = document.createElement('a')
+        if (link.download !== undefined) {
+          const url = URL.createObjectURL(blob)
+          link.setAttribute('href', url)
+          link.setAttribute('download', 'report_upload_prodotti.csv')
+          link.style.visibility = 'hidden'
+          document.body.appendChild(link)
+          link.click()
+          document.body.removeChild(link)
+        }
+      }
+      
       toast({
         title: 'Errore Upload',
         description: error instanceof Error ? error.message : 'Si è verificato un errore durante l\'upload. Riprova.',
@@ -1509,7 +1526,7 @@ export default function BulkPage() {
                       <TableCell>
                         {error.error.includes(':') ? (
                           <>
-                            {error.error.split(':')[0]}:
+                            <span className="font-bold">{error.error.split(':')[0]}</span>:
                             <span className="font-bold ml-1">{error.error.split(':')[1].trim()}</span>
                           </>
                         ) : (
