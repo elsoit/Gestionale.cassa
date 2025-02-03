@@ -70,7 +70,8 @@ import {
   BanknoteIcon,
   RotateCcw,
   RefreshCw,
-  Coins
+  Coins,
+  Package
 } from 'lucide-react'
 
 // Hooks and Utils imports
@@ -836,6 +837,7 @@ export default function POSSystem() {
           'Content-Type': 'application/json',
         },
       });
+      console.log('productResponse', productResponse)
 
       if (productResponse.ok) {
         const product = await productResponse.json();
@@ -869,11 +871,47 @@ export default function POSSystem() {
         }
         setSearchTerm('');
       } else {
-        toast({
-          title: "Non trovato",
-          description: "Nessun prodotto trovato per questo codice.",
-          variant: "destructive",
-        });
+        // Se non trova il prodotto, cerca l'ordine
+        try {
+          const orderResponse = await fetch(`${process.env.API_URL}/api/barcode/barcodes/${value}/order`, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          });
+
+          if (orderResponse.ok) {
+            const order = await orderResponse.json();
+            
+            // Se trova l'ordine, verifica se il carrello è vuoto
+            if (cart.length > 0) {
+              toast({
+                title: "Carrello non vuoto",
+                description: "Svuota il carrello prima di caricare una vendita.",
+                variant: "destructive",
+              });
+              setSearchTerm('');
+              return;
+            }
+
+            // Carica l'ordine
+            await loadOrderInCart(order);
+            setSearchTerm('');
+          } else {
+            toast({
+              title: "Non trovato",
+              description: "Nessun prodotto o ordine trovato per questo codice.",
+              variant: "destructive",
+            });
+          }
+        } catch (error) {
+          console.error('Error searching order:', error);
+          toast({
+            title: "Errore",
+            description: "Errore durante la ricerca dell'ordine.",
+            variant: "destructive",
+          });
+        }
       }
     } catch (error) {
       console.error('Error searching:', error);
@@ -1094,7 +1132,7 @@ export default function POSSystem() {
   // Funzione per formattare il totale da pagare
   const formatRemainingAmount = (amount: number) => {
     if (isNaN(amount)) return 0;
-    return Math.abs(amount) <= 0.05 ? 0 : amount;
+    return Math.abs(amount) <= 0.01 ? 0 : amount;
   };
 
   // Calcola il totale da pagare
@@ -1195,7 +1233,7 @@ export default function POSSystem() {
 
   const totalSelected = Object.values(paymentAmounts).reduce((sum, amount) => sum + (amount || 0), 0);
   const remainingToPay = Number(totalAmount) - Number(totalPreviousPayments);
-  const isPartialPayment = totalSelected < remainingToPay && (remainingToPay - totalSelected) > 0.02;
+  const isPartialPayment = totalSelected < remainingToPay && (remainingToPay - totalSelected) > 0.01;
 
   // Funzione per verificare se ci sono prodotti con quantità superiore alla disponibilità
   const hasInsufficientStock = () => {
@@ -3022,14 +3060,19 @@ export default function POSSystem() {
                               onClick={() => handleProductSelect(product)}
                             >
                               <TableCell>
-                                <div className="relative h-12 w-12 rounded-md overflow-hidden border border-gray-200">
-                                  <Image
-                                    src={product.mainPhotoUrl || '/placeholder.png'}
-                                    alt={product.article_code}
-                                    className="object-cover"
-                                    fill
-                                    sizes="(max-width: 48px) 100vw"
-                                  />
+                                <div className="relative w-12 h-12">
+                                  {product.mainPhotoUrl ? (
+                                    <Image
+                                      src={product.mainPhotoUrl}
+                                      alt={`${product.article_code} ${product.variant_code}`}
+                                      fill
+                                      className="object-cover rounded-md"
+                                    />
+                                  ) : (
+                                    <div className="w-12 h-12 rounded-md bg-muted flex items-center justify-center">
+                                      <Package className="w-6 h-6 text-muted-foreground" />
+                                    </div>
+                                  )}
                                 </div>
                               </TableCell>
                               <TableCell className="font-medium">{product.article_code}</TableCell>

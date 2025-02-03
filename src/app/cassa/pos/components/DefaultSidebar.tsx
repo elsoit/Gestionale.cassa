@@ -153,7 +153,7 @@ export function DefaultSidebar({
               <div className="flex justify-between items-center mb-4">
                 <span className="text-sm font-medium text-gray-600">Acconti</span>
                 <div className="flex items-center gap-2">
-                  <span className="text-green-600 font-semibold text-lg">{deposit} €</span>
+                  <span className="text-green-600 font-semibold text-lg">{parseFloat(deposit?.toString() || '0').toFixed(2)} €</span>
                   <Button
                     size="sm"
                     variant="ghost"
@@ -180,44 +180,74 @@ export function DefaultSidebar({
             <div>
               <p className="text-sm font-medium text-gray-600 mb-2">Modalità pagamento</p>
               <div className="flex gap-2 mb-4">
-                {paymentMethodsData.filter(method => method.code !== 'OTHR').map((method: PaymentMethod) => {
-                  const voucherAmount = paymentAmounts['BSC'] || 0;
-                  const isVoucherCoveringTotal = voucherAmount >= totalToPay;
-                  const isVoucherActive = selectedPaymentTypes.includes('BSC');
-                  const isDisabled = cart.length === 0 || 
-                                    totalToPay === 0 || 
-                                    (isVoucherCoveringTotal && method.code !== 'BSC') ||
-                                    (selectedPaymentTypes.length >= 2 && !selectedPaymentTypes.includes(method.code));
+                {paymentMethodsData
+                  .filter(method => method.code !== 'OTHR')
+                  .sort((a, b) => {
+                    // Definisci l'ordine di priorità
+                    const getPriority = (code: string): number => {
+                      switch (code) {
+                        case 'CRD': return 1;  // Carta
+                        case 'CSH': return 2;  // Contanti
+                        case 'BNF': return 3;  // Bonifico
+                        case 'BSC': return 4;  // Voucher
+                        default: return 5;     // Altri metodi
+                      }
+                    };
+                    
+                    return getPriority(a.code) - getPriority(b.code);
+                  })
+                  .map((method: PaymentMethod) => {
+                    const voucherAmount = paymentAmounts['BSC'] || 0;
+                    const isVoucherCoveringTotal = voucherAmount >= totalToPay;
+                    const isVoucherActive = selectedPaymentTypes.includes('BSC');
+                    const isDisabled = cart.length === 0 || 
+                                      totalToPay === 0 || 
+                                      (isVoucherCoveringTotal && method.code !== 'BSC') ||
+                                      (selectedPaymentTypes.length >= 2 && !selectedPaymentTypes.includes(method.code));
 
-                  return (
-                    <Button
-                      key={method.code}
-                      variant={selectedPaymentTypes.includes(method.code) ? 'default' : 'outline'}
-                      onClick={() => {
-                        if (method.code === 'BSC') {
-                          if (isVoucherActive) {
-                            onRemovePaymentType('BSC');
+                    return (
+                      <Button
+                        key={method.code}
+                        variant={selectedPaymentTypes.includes(method.code) ? 'default' : 'outline'}
+                        onClick={() => {
+                          if (method.code === 'BSC') {
+                            if (isVoucherActive) {
+                              onRemovePaymentType('BSC');
+                            } else {
+                              onShowVoucherModal();
+                            }
                           } else {
-                            onShowVoucherModal();
+                            if (selectedPaymentTypes.includes(method.code)) {
+                              onRemovePaymentType(method.code);
+                            } else {
+                              onPaymentTypeChange(method.code);
+                            }
                           }
-                        } else {
-                          if (selectedPaymentTypes.includes(method.code)) {
-                            onRemovePaymentType(method.code);
-                          } else {
-                            onPaymentTypeChange(method.code);
-                          }
-                        }
-                      }}
-                      disabled={isDisabled}
-                      className={`h-10 w-10 p-0 relative group transition-colors ${
-                        selectedPaymentTypes.includes(method.code)
-                          ? 'bg-[#1E1E1E] text-white hover:bg-red-500 hover:border-red-500' 
-                          : ''
-                      }`}
-                    >
-                      {selectedPaymentTypes.includes(method.code) ? (
-                        <>
-                          <div className="group-hover:hidden">
+                        }}
+                        disabled={isDisabled}
+                        className={`h-10 w-10 p-0 relative group transition-colors ${
+                          selectedPaymentTypes.includes(method.code)
+                            ? 'bg-[#1E1E1E] text-white hover:bg-red-500 hover:border-red-500' 
+                            : ''
+                        }`}
+                      >
+                        {selectedPaymentTypes.includes(method.code) ? (
+                          <>
+                            <div className="group-hover:hidden">
+                              {method.icon === 'Euro' && <Euro className="h-4 w-4" />}
+                              {method.icon === 'CreditCard' && <CreditCard className="h-4 w-4" />}
+                              {method.icon === 'FileText' && <FileText className="h-4 w-4" />}
+                              {method.icon === 'Wallet' && <Wallet className="h-4 w-4" />}
+                              {method.icon === 'Link2' && <Link2 className="h-4 w-4" />}
+                              {method.icon === 'Banknote' && <Banknote className="h-4 w-4" />}
+                              {method.icon === 'QrCode' && <QrCode className="h-4 w-4" />}
+                              {method.icon === 'Smartphone' && <Smartphone className="h-4 w-4" />}
+                              {method.icon === 'Ticket' && <TicketIcon className="h-4 w-4" />}
+                            </div>
+                            <X className="h-4 w-4 absolute inset-0 m-auto hidden group-hover:block" />
+                          </>
+                        ) : (
+                          <>
                             {method.icon === 'Euro' && <Euro className="h-4 w-4" />}
                             {method.icon === 'CreditCard' && <CreditCard className="h-4 w-4" />}
                             {method.icon === 'FileText' && <FileText className="h-4 w-4" />}
@@ -227,28 +257,14 @@ export function DefaultSidebar({
                             {method.icon === 'QrCode' && <QrCode className="h-4 w-4" />}
                             {method.icon === 'Smartphone' && <Smartphone className="h-4 w-4" />}
                             {method.icon === 'Ticket' && <TicketIcon className="h-4 w-4" />}
-                          </div>
-                          <X className="h-4 w-4 absolute inset-0 m-auto hidden group-hover:block" />
-                        </>
-                      ) : (
-                        <>
-                          {method.icon === 'Euro' && <Euro className="h-4 w-4" />}
-                          {method.icon === 'CreditCard' && <CreditCard className="h-4 w-4" />}
-                          {method.icon === 'FileText' && <FileText className="h-4 w-4" />}
-                          {method.icon === 'Wallet' && <Wallet className="h-4 w-4" />}
-                          {method.icon === 'Link2' && <Link2 className="h-4 w-4" />}
-                          {method.icon === 'Banknote' && <Banknote className="h-4 w-4" />}
-                          {method.icon === 'QrCode' && <QrCode className="h-4 w-4" />}
-                          {method.icon === 'Smartphone' && <Smartphone className="h-4 w-4" />}
-                          {method.icon === 'Ticket' && <TicketIcon className="h-4 w-4" />}
-                        </>
-                      )}
-                      <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                        {method.name}
-                      </span>
-                    </Button>
-                  );
-                })}
+                          </>
+                        )}
+                        <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                          {method.name}
+                        </span>
+                      </Button>
+                    );
+                  })}
               </div>
               
               <div className="space-y-2">

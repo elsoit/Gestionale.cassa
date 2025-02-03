@@ -763,17 +763,30 @@ export default function BulkPage() {
       for (let i = 0; i < previewData.length; i++) {
         const row = previewData[i]
         
+        // Verifica che tutti i campi necessari esistano
+        if (!row.article_code?.value || !row.variant_code?.value || !row.size?.id || !row.size_group?.id) {
+          console.error('Dati mancanti nella riga:', row);
+          throw new Error('Dati mancanti o non validi nel file');
+        }
+        
         // Prepara i dati del prodotto senza la foto
         const productData = {
-          article_code: row.article_code.value,
-          variant_code: row.variant_code.value,
-          size_id: row.size.id,
-          size_group_id: row.size_group.id,
-          brand_id: parseInt(selectedBrand),
-          wholesale_price: row.wholesale_price.value,
-          retail_price: row.retail_price.value,
-          status_id: parseInt(selectedStatus),
-          barcode: row.barcode?.value
+          article_code: String(row.article_code.value),
+          variant_code: String(row.variant_code.value),
+          size_id: Number(row.size.id),
+          size_group_id: Number(row.size_group.id),
+          brand_id: selectedBrand ? Number(selectedBrand) : undefined,
+          wholesale_price: row.wholesale_price?.value ? Number(row.wholesale_price.value) : 0,
+          retail_price: row.retail_price?.value ? Number(row.retail_price.value) : 0,
+          status_id: selectedStatus ? Number(selectedStatus) : undefined,
+          barcode: row.barcode?.value ? String(row.barcode.value) : undefined
+        }
+
+        // Verifica che i campi obbligatori siano presenti e validi
+        if (!productData.article_code || !productData.variant_code || 
+            !productData.size_id || !productData.size_group_id || 
+            !productData.brand_id || !productData.status_id) {
+          throw new Error('Campi obbligatori mancanti');
         }
 
         // Verifica se il prodotto esiste già
@@ -829,13 +842,14 @@ export default function BulkPage() {
 
       // Gestione delle foto in bulk
       const photosToUpload = previewData
-        .filter(row => row.photo_value?.isImage && row.photo_value.value)
+        .filter(row => row.photo_value?.isImage && row.photo_value?.value && typeof row.photo_value.value === 'string')
         .map(row => ({
-          article_code: row.article_code.value,
-          variant_code: row.variant_code.value,
-          url: row.photo_value.value,
-          isPublicUrl: row.photo_value.value.startsWith('https://pub-')
-        }));
+          article_code: String(row.article_code?.value || ''),
+          variant_code: String(row.variant_code?.value || ''),
+          url: String(row.photo_value?.value || ''),
+          isPublicUrl: row.photo_value?.value?.startsWith('https://pub-')
+        }))
+        .filter(photo => photo.article_code && photo.variant_code && photo.url);
 
       if (photosToUpload.length > 0) {
         try {
@@ -900,7 +914,7 @@ export default function BulkPage() {
       console.error('Errore upload:', error)
       toast({
         title: 'Errore Upload',
-        description: 'Si è verificato un errore durante l\'upload. Riprova.',
+        description: error instanceof Error ? error.message : 'Si è verificato un errore durante l\'upload. Riprova.',
         variant: 'destructive',
       })
     } finally {
