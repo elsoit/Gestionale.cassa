@@ -534,12 +534,16 @@ export default function BulkPage() {
 
         const mappedRow: any = {};
 
-        // Se il brand è mappato dal file Excel
+        // Gestione del brand
         if (columnMapping['brand']) {
           const brandValue = row[columnMapping['brand']];
           const brandMatch = brands.find(b => b.name.toLowerCase() === String(brandValue).toLowerCase());
           if (brandMatch) {
-            mappedRow.brand = { value: brandMatch.name, id: brandMatch.id };
+            mappedRow.brand = { 
+              value: brandMatch.name, 
+              id: brandMatch.id,
+              corrected: true 
+            };
           } else {
             mappedRow.brand = { 
               value: brandValue, 
@@ -547,12 +551,13 @@ export default function BulkPage() {
               errorMessage: `Brand non valido: ${brandValue}` 
             };
           }
-        } else {
-          // Usa il brand selezionato manualmente
+        } else if (selectedBrand) {
+          // Brand selezionato manualmente
           const selectedBrandObj = brands.find(b => b.id.toString() === selectedBrand);
           mappedRow.brand = { 
             value: selectedBrandObj?.name || '',
-            id: selectedBrand ? parseInt(selectedBrand) : undefined
+            id: selectedBrand ? parseInt(selectedBrand) : undefined,
+            corrected: true
           };
         }
 
@@ -708,7 +713,7 @@ export default function BulkPage() {
       })));
 
       setPreviewData(mappedData);
-      setIsDialogOpen(false); // Chiudi il popup dopo l'anteprima
+      setIsDialogOpen(false);
     } catch (error) {
       console.error('Errore durante la lettura del file:', error);
       toast({
@@ -769,15 +774,20 @@ export default function BulkPage() {
           throw new Error('Dati obbligatori mancanti o non validi nel file');
         }
         
+        // Verifica che il brand abbia un ID valido
+        if (!row.brand?.id) {
+          console.error('Brand ID mancante:', row);
+          throw new Error('ID del brand mancante o non valido');
+        }
+        
         // Prepara i dati del prodotto
         const productData = {
           article_code: String(row.article_code.value),
           variant_code: String(row.variant_code.value),
           size_id: Number(row.size.id),
           size_group_id: Number(row.size_group.id),
-          brand_id: selectedBrand ? Number(selectedBrand) : undefined,
+          brand_id: Number(row.brand.id), // Usa l'ID del brand dalla riga
           wholesale_price: row.wholesale_price?.value ? Number(row.wholesale_price.value) : 0,
-          // Campi opzionali: passa null se non presenti
           retail_price: row.retail_price?.value ? Number(row.retail_price.value) : null,
           status_id: selectedStatus ? Number(selectedStatus) : undefined,
           barcode: row.barcode?.value ? String(row.barcode.value) : null
