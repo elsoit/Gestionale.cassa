@@ -763,13 +763,13 @@ export default function BulkPage() {
       for (let i = 0; i < previewData.length; i++) {
         const row = previewData[i]
         
-        // Verifica che tutti i campi necessari esistano
+        // Verifica solo i campi obbligatori
         if (!row.article_code?.value || !row.variant_code?.value || !row.size?.id || !row.size_group?.id) {
           console.error('Dati mancanti nella riga:', row);
-          throw new Error('Dati mancanti o non validi nel file');
+          throw new Error('Dati obbligatori mancanti o non validi nel file');
         }
         
-        // Prepara i dati del prodotto senza la foto
+        // Prepara i dati del prodotto
         const productData = {
           article_code: String(row.article_code.value),
           variant_code: String(row.variant_code.value),
@@ -777,12 +777,13 @@ export default function BulkPage() {
           size_group_id: Number(row.size_group.id),
           brand_id: selectedBrand ? Number(selectedBrand) : undefined,
           wholesale_price: row.wholesale_price?.value ? Number(row.wholesale_price.value) : 0,
-          retail_price: row.retail_price?.value ? Number(row.retail_price.value) : 0,
+          // Campi opzionali: passa null se non presenti
+          retail_price: row.retail_price?.value ? Number(row.retail_price.value) : null,
           status_id: selectedStatus ? Number(selectedStatus) : undefined,
-          barcode: row.barcode?.value ? String(row.barcode.value) : undefined
+          barcode: row.barcode?.value ? String(row.barcode.value) : null
         }
 
-        // Verifica che i campi obbligatori siano presenti e validi
+        // Verifica solo i campi obbligatori
         if (!productData.article_code || !productData.variant_code || 
             !productData.size_id || !productData.size_group_id || 
             !productData.brand_id || !productData.status_id) {
@@ -840,9 +841,15 @@ export default function BulkPage() {
         setUploadProgress(Math.round(((i + 1) / previewData.length) * 100));
       }
 
-      // Gestione delle foto in bulk
+      // Gestione delle foto in bulk - solo se ci sono foto valide
       const photosToUpload = previewData
-        .filter(row => row.photo_value?.isImage && row.photo_value?.value && typeof row.photo_value.value === 'string')
+        .filter(row => 
+          // Verifica che la foto sia presente e valida
+          row.photo_value?.isImage && 
+          row.photo_value?.value && 
+          typeof row.photo_value.value === 'string' &&
+          row.photo_value.value !== 'N/A' // Esclude i valori N/A
+        )
         .map(row => ({
           article_code: String(row.article_code?.value || ''),
           variant_code: String(row.variant_code?.value || ''),
@@ -851,6 +858,7 @@ export default function BulkPage() {
         }))
         .filter(photo => photo.article_code && photo.variant_code && photo.url);
 
+      // Carica le foto solo se ce ne sono
       if (photosToUpload.length > 0) {
         try {
           const photosResponse = await fetch(`${process.env.API_URL}/api/products/bulk-photos`, {
@@ -1042,6 +1050,21 @@ export default function BulkPage() {
   const debouncedSearch = debounce((query: string) => {
     console.log('Searching for:', query);
   }, 500);
+
+  // Aggiungi questa funzione prima del return
+  const hasValidData = (field: string) => {
+    return previewData.some(row => {
+      const value = row[field]?.value;
+      return value && value !== 'N/A' && value !== '';
+    });
+  };
+
+  // Aggiungi questa funzione per controllare se ci sono errori non corretti
+  const hasUncorrectedErrors = useMemo(() => {
+    return previewData.some((row: MappedRow) => 
+      Object.values(row).some((cell: CellValue) => cell.error && !cell.corrected)
+    );
+  }, [previewData]);
 
   return (
     <div className="container mx-auto p-4">
@@ -1326,66 +1349,84 @@ export default function BulkPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>BRAND</TableHead>
-                  <TableHead>STATO</TableHead>
-                  <TableHead>ARTICLE CODE</TableHead>
-                  <TableHead>VARIANT CODE</TableHead>
-                  <TableHead>FOTO</TableHead>
-                  <TableHead>SIZE</TableHead>
-                  <TableHead>SIZE GROUP</TableHead>
-                  <TableHead>BARCODE</TableHead>
-                  <TableHead>WHOLESALE PRICE</TableHead>
-                  <TableHead>RETAIL PRICE</TableHead>
+                  {hasValidData('brand') && <TableHead>BRAND</TableHead>}
+                  {hasValidData('status') && <TableHead>STATO</TableHead>}
+                  {hasValidData('article_code') && <TableHead>ARTICLE CODE</TableHead>}
+                  {hasValidData('variant_code') && <TableHead>VARIANT CODE</TableHead>}
+                  {hasValidData('photo_value') && <TableHead>FOTO</TableHead>}
+                  {hasValidData('size') && <TableHead>SIZE</TableHead>}
+                  {hasValidData('size_group') && <TableHead>SIZE GROUP</TableHead>}
+                  {hasValidData('barcode') && <TableHead>BARCODE</TableHead>}
+                  {hasValidData('wholesale_price') && <TableHead>WHOLESALE PRICE</TableHead>}
+                  {hasValidData('retail_price') && <TableHead>RETAIL PRICE</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {previewData.map((row, index) => (
                   <TableRow key={index}>
-                    <TableCell>
-                      {row.brand?.value}
-                      {row.brand?.error && (
-                        <span className="text-red-500 ml-1">
-                          ({row.brand.errorMessage})
-                        </span>
-                      )}
-                    </TableCell>
-                    <TableCell>{row.status?.value}</TableCell>
-                    <TableCell className={row.article_code?.error ? 'text-red-500' : ''}>
-                      {row.article_code?.value}
-                    </TableCell>
-                    <TableCell className={row.variant_code?.error ? 'text-red-500' : ''}>
-                      {row.variant_code?.value}
-                    </TableCell>
-                    <TableCell>
-                      {row.photo_value?.isImage ? (
-                        <div className="relative w-10 h-10">
-                          <Image 
-                            src={row.photo_value.value} 
-                            alt="Product preview"
-                            width={100}
-                            height={100}
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
-                      ) : (
-                        <span>N/A</span>
-                      )}
-                    </TableCell>
-                    <TableCell className={row.size?.error ? 'text-red-500' : ''}>
-                      {row.size?.value}
-                    </TableCell>
-                    <TableCell className={row.size_group?.error ? 'text-red-500' : ''}>
-                      {row.size_group?.value}
-                    </TableCell>
-                    <TableCell className={row.barcode?.error ? 'text-red-500' : ''}>
-                      {row.barcode?.value}
-                    </TableCell>
-                    <TableCell className={row.wholesale_price?.error ? 'text-red-500' : ''}>
-                      {row.wholesale_price?.value}
-                    </TableCell>
-                    <TableCell className={row.retail_price?.error ? 'text-red-500' : ''}>
-                      {row.retail_price?.value}
-                    </TableCell>
+                    {hasValidData('brand') && (
+                      <TableCell>
+                        {row.brand?.value}
+                        {row.brand?.error && (
+                          <span className="text-red-500 ml-1">
+                            ({row.brand.errorMessage})
+                          </span>
+                        )}
+                      </TableCell>
+                    )}
+                    {hasValidData('status') && <TableCell>{row.status?.value}</TableCell>}
+                    {hasValidData('article_code') && (
+                      <TableCell className={row.article_code?.error ? 'text-red-500' : ''}>
+                        {row.article_code?.value}
+                      </TableCell>
+                    )}
+                    {hasValidData('variant_code') && (
+                      <TableCell className={row.variant_code?.error ? 'text-red-500' : ''}>
+                        {row.variant_code?.value}
+                      </TableCell>
+                    )}
+                    {hasValidData('photo_value') && (
+                      <TableCell>
+                        {row.photo_value?.isImage ? (
+                          <div className="relative w-10 h-10">
+                            <Image 
+                              src={row.photo_value.value} 
+                              alt="Product preview"
+                              width={100}
+                              height={100}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                        ) : (
+                          <span>N/A</span>
+                        )}
+                      </TableCell>
+                    )}
+                    {hasValidData('size') && (
+                      <TableCell className={row.size?.error ? 'text-red-500' : ''}>
+                        {row.size?.value}
+                      </TableCell>
+                    )}
+                    {hasValidData('size_group') && (
+                      <TableCell className={row.size_group?.error ? 'text-red-500' : ''}>
+                        {row.size_group?.value}
+                      </TableCell>
+                    )}
+                    {hasValidData('barcode') && (
+                      <TableCell className={row.barcode?.error ? 'text-red-500' : ''}>
+                        {row.barcode?.value}
+                      </TableCell>
+                    )}
+                    {hasValidData('wholesale_price') && (
+                      <TableCell className={row.wholesale_price?.error ? 'text-red-500' : ''}>
+                        {row.wholesale_price?.value}
+                      </TableCell>
+                    )}
+                    {hasValidData('retail_price') && (
+                      <TableCell className={row.retail_price?.error ? 'text-red-500' : ''}>
+                        {row.retail_price?.value}
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))}
               </TableBody>
@@ -1396,7 +1437,7 @@ export default function BulkPage() {
             <div className="relative">
               <Button
                 onClick={handleUpload}
-                disabled={!isPreviewEnabled || isUploading}
+                disabled={hasUncorrectedErrors || isUploading}
                 className={isUploading ? 'opacity-80' : ''}
               >
                 {isUploading ? (
@@ -1455,7 +1496,16 @@ export default function BulkPage() {
                   return (
                     <TableRow key={index}>
                       <TableCell className="font-medium">{error.field.toUpperCase()}</TableCell>
-                      <TableCell>{error.error}</TableCell>
+                      <TableCell>
+                        {error.error.includes(':') ? (
+                          <>
+                            {error.error.split(':')[0]}:
+                            <span className="font-bold ml-1">{error.error.split(':')[1].trim()}</span>
+                          </>
+                        ) : (
+                          error.error
+                        )}
+                      </TableCell>
                       <TableCell>{error.rows.length}</TableCell>
                       <TableCell>
                         {error.field === 'size' ? (
