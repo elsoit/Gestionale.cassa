@@ -786,11 +786,11 @@ export default function BulkPage() {
           variant_code: String(row.variant_code.value),
           size_id: Number(row.size.id),
           size_group_id: Number(row.size_group.id),
-          brand_id: Number(row.brand.id), // Usa l'ID del brand dalla riga
+          brand_id: Number(row.brand.id),
           wholesale_price: row.wholesale_price?.value ? Number(row.wholesale_price.value) : 0,
           retail_price: row.retail_price?.value ? Number(row.retail_price.value) : null,
           status_id: selectedStatus ? Number(selectedStatus) : undefined,
-          barcode: row.barcode?.value ? String(row.barcode.value) : null
+          ...(row.barcode?.value ? { barcode: String(row.barcode.value) } : {})
         }
 
         // Verifica solo i campi obbligatori
