@@ -264,6 +264,9 @@ export default function LoadDetailPage() {
   // Aggiungi un nuovo stato per tracciare l'azione in caricamento
   const [isActionLoading, setIsActionLoading] = useState(false);
 
+  // Aggiungi questi stati per gestire il dialog
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+
   useEffect(() => {
     if (id) {
       fetchLoadDetails()
@@ -1413,6 +1416,32 @@ export default function LoadDetailPage() {
     }))
   });
 
+  // Aggiungi questa funzione per gestire l'annullamento
+  const handleCancelChanges = () => {
+    setShowConfirmDialog(true);
+  };
+
+  // Funzione per confermare l'annullamento
+  const handleConfirmCancelChanges = () => {
+    // Ripristina i prodotti originali dal database
+    setLoadProducts(originalProducts);
+    
+    // Pulisci la cache locale
+    localStorage.removeItem(`load-${id}-products`);
+    
+    // Resetta lo stato di modifica
+    setIsChanged(false);
+    
+    // Chiudi il dialog
+    setShowConfirmDialog(false);
+    
+    // Mostra un toast di conferma
+    toast({
+      title: "Modifiche annullate",
+      description: "Tutte le modifiche sono state annullate con successo",
+    });
+  };
+
   if (!load) return <div>Loading...</div>
 
   return (
@@ -1425,7 +1454,7 @@ export default function LoadDetailPage() {
             <label className="block text-sm font-medium text-gray-700 mb-1">Codice</label>
             <Input
               value={load.code}
-              disabled={isLoadDisabled}
+              disabled={true}
               onChange={(e) => handleLoadChange('code', e.target.value)}
                 className="bg-white h-8"
             />
@@ -1452,14 +1481,12 @@ export default function LoadDetailPage() {
             </div>
           </div>
             <div>
-          <SelectWithNullOption
-            options={warehouses.map(warehouse => ({ value: warehouse.id.toString(), label: warehouse.name }))}
-            value={load.warehouse_id?.toString() ?? null}
-            onValueChange={(value: string | number | null) => handleLoadChange('warehouse_id', value ? (typeof value === 'string' ? parseInt(value) : value) : null)}
-            placeholder="Seleziona magazzino"
-            label="Magazzino"
-            nullOptionLabel="Seleziona un magazzino"
-          />
+              <label className="block text-sm font-medium text-gray-700 mb-1">Magazzino</label>
+              <Input
+                value={warehouses.find(w => w.id === load.warehouse_id)?.name || ''}
+                disabled={true}
+                className="bg-white h-8"
+              />
             </div>
         </div>
 
@@ -1531,11 +1558,18 @@ export default function LoadDetailPage() {
                   variant="outline"
                   className="font-medium"
                 >
-                  Salva
+                  {isConfirming ? (
+                    <>
+                      <span className="animate-spin mr-2">⌛</span>
+                      Salvando...
+                    </>
+                  ) : (
+                    'Salva'
+                  )}
                 </Button>
                 {isChanged && (
                   <Button
-                    onClick={handleCancel}
+                    onClick={handleCancelChanges}
                     variant="ghost"
                     className="font-medium text-red-600 hover:text-red-700 hover:bg-red-50"
                   >
@@ -1744,6 +1778,32 @@ export default function LoadDetailPage() {
                   {selectedAction === 'delete' && "Cancella"}
                 </>
               )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Aggiungi il Dialog di conferma */}
+      <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Conferma Annullamento</DialogTitle>
+            <DialogDescription>
+              Sei sicuro di voler annullare tutte le modifiche? Questa azione non può essere annullata.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowConfirmDialog(false)}
+            >
+              Annulla
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleConfirmCancelChanges}
+            >
+              Conferma
             </Button>
           </DialogFooter>
         </DialogContent>
