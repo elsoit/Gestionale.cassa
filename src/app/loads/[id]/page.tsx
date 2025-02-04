@@ -261,6 +261,9 @@ export default function LoadDetailPage() {
     availabilityFilter: {} as { type?: 'available' | 'not_available' | 'greater_than' | 'less_than', value?: number }
   })
 
+  // Aggiungi un nuovo stato per tracciare l'azione in caricamento
+  const [isActionLoading, setIsActionLoading] = useState(false);
+
   useEffect(() => {
     if (id) {
       fetchLoadDetails()
@@ -928,22 +931,28 @@ export default function LoadDetailPage() {
   };
 
   const handleConfirmAction = async () => {
-    if (!selectedAction) return
+    if (!selectedAction || isActionLoading) return;
 
-    switch (selectedAction) {
-      case 'confirm':
-        await handleConfirmLoad()
-        break
-      case 'revoke':
-        await handleRevokeLoad()
-        break
-      case 'delete':
-        await handleDeleteLoad()
-        break
+    try {
+      setIsActionLoading(true);
+
+      switch (selectedAction) {
+        case 'confirm':
+          await handleConfirmLoad();
+          break;
+        case 'revoke':
+          await handleRevokeLoad();
+          break;
+        case 'delete':
+          await handleDeleteLoad();
+          break;
+      }
+    } finally {
+      setIsActionLoading(false);
+      setSelectedAction(null);
+      setIsDialogOpen(false);
     }
-    setSelectedAction(null)
-    setIsDialogOpen(false)
-  }
+  };
 
   const handleRevokeLoad = async () => {
     if (!load || isRevoking) return
@@ -1713,17 +1722,28 @@ export default function LoadDetailPage() {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+            <Button variant="outline" onClick={() => setIsDialogOpen(false)} disabled={isActionLoading}>
               Annulla
             </Button>
             <Button 
               variant="destructive" 
               onClick={handleConfirmAction}
-              disabled={isConfirming || isRevoking || isDeleting}
+              disabled={isActionLoading}
             >
-              {selectedAction === 'confirm' && (isConfirming ? "Confermando..." : load.status_id === 9 ? "Conferma" : "Riconferma")}
-              {selectedAction === 'revoke' && (isRevoking ? "Revocando..." : "Revoca")}
-              {selectedAction === 'delete' && (isDeleting ? "Cancellando..." : "Cancella")}
+              {isActionLoading ? (
+                <>
+                  <span className="animate-spin mr-2">⌛</span>
+                  {selectedAction === 'confirm' && (load?.status_id === 9 ? "Confermando..." : "Riconfermando...")}
+                  {selectedAction === 'revoke' && "Revocando..."}
+                  {selectedAction === 'delete' && "Cancellando..."}
+                </>
+              ) : (
+                <>
+                  {selectedAction === 'confirm' && (load?.status_id === 9 ? "Conferma" : "Riconferma")}
+                  {selectedAction === 'revoke' && "Revoca"}
+                  {selectedAction === 'delete' && "Cancella"}
+                </>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

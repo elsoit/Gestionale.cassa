@@ -7,6 +7,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useState, useEffect } from 'react'
 import { Toaster } from "@/components/ui/toaster"
 import { usePathname } from 'next/navigation'
+import { Toaster as SonnerToaster } from 'sonner'
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -49,6 +50,7 @@ export default function RootLayout({
           </main>
         </QueryClientProvider>
         <Toaster />
+        <SonnerToaster richColors position="top-right" />
       </body>
     </html>
   );

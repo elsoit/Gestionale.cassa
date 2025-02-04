@@ -534,16 +534,12 @@ export default function BulkPage() {
 
         const mappedRow: any = {};
 
-        // Gestione del brand
+        // Se il brand è mappato dal file Excel
         if (columnMapping['brand']) {
           const brandValue = row[columnMapping['brand']];
           const brandMatch = brands.find(b => b.name.toLowerCase() === String(brandValue).toLowerCase());
           if (brandMatch) {
-            mappedRow.brand = { 
-              value: brandMatch.name, 
-              id: brandMatch.id,
-              corrected: true 
-            };
+            mappedRow.brand = { value: brandMatch.name, id: brandMatch.id };
           } else {
             mappedRow.brand = { 
               value: brandValue, 
@@ -551,13 +547,12 @@ export default function BulkPage() {
               errorMessage: `Brand non valido: ${brandValue}` 
             };
           }
-        } else if (selectedBrand) {
-          // Brand selezionato manualmente
+        } else {
+          // Usa il brand selezionato manualmente
           const selectedBrandObj = brands.find(b => b.id.toString() === selectedBrand);
           mappedRow.brand = { 
             value: selectedBrandObj?.name || '',
-            id: selectedBrand ? parseInt(selectedBrand) : undefined,
-            corrected: true
+            id: selectedBrand ? parseInt(selectedBrand) : undefined
           };
         }
 
@@ -713,7 +708,7 @@ export default function BulkPage() {
       })));
 
       setPreviewData(mappedData);
-      setIsDialogOpen(false);
+      setIsDialogOpen(false); // Chiudi il popup dopo l'anteprima
     } catch (error) {
       console.error('Errore durante la lettura del file:', error);
       toast({
@@ -759,14 +754,27 @@ export default function BulkPage() {
     setIsErrorDialogOpen(false)
   }
 
+  const generateCSVReport = (results: any[]) => {
+    const headers = ['Codice Articolo', 'Codice Variante', 'Taglia', 'Barcode', 'Stato', 'Dettaglio Errore'];
+    const rows = results.map(result => [
+      result.product.article_code,
+      result.product.variant_code,
+      sizes.find(s => s.id === result.product.size_id)?.name || '',
+      result.product.barcode || '',
+      result.status,
+      result.error || ''
+    ]);
+    return [headers, ...rows].map(row => row.join(',')).join('\n');
+  }
+
   const handleUpload = async () => {
-    setIsUploading(true)
-    setUploadProgress(0)
-    const results = []
+    setIsUploading(true);
+    setUploadProgress(0);
+    const results: any[] = [];
 
     try {
       for (let i = 0; i < previewData.length; i++) {
-        const row = previewData[i]
+        const row = previewData[i];
         
         // Verifica solo i campi obbligatori
         if (!row.article_code?.value || !row.variant_code?.value || !row.size?.id || !row.size_group?.id) {
@@ -774,24 +782,18 @@ export default function BulkPage() {
           throw new Error('Dati obbligatori mancanti o non validi nel file');
         }
         
-        // Verifica che il brand abbia un ID valido
-        if (!row.brand?.id) {
-          console.error('Brand ID mancante:', row);
-          throw new Error('ID del brand mancante o non valido');
-        }
-        
         // Prepara i dati del prodotto
         const productData = {
-          article_code: String(row.article_code.value),
-          variant_code: String(row.variant_code.value),
+          article_code: String(row.article_code.value).toUpperCase(),
+          variant_code: String(row.variant_code.value).toUpperCase(),
           size_id: Number(row.size.id),
           size_group_id: Number(row.size_group.id),
-          brand_id: Number(row.brand.id),
+          brand_id: selectedBrand ? Number(selectedBrand) : undefined,
           wholesale_price: row.wholesale_price?.value ? Number(row.wholesale_price.value) : 0,
           retail_price: row.retail_price?.value ? Number(row.retail_price.value) : null,
           status_id: selectedStatus ? Number(selectedStatus) : undefined,
-          ...(row.barcode?.value ? { barcode: String(row.barcode.value) } : {})
-        }
+          barcode: row.barcode?.value ? String(row.barcode.value) : null
+        };
 
         // Verifica solo i campi obbligatori
         if (!productData.article_code || !productData.variant_code || 
@@ -811,165 +813,141 @@ export default function BulkPage() {
           }),
           mode: 'cors',
           credentials: 'include',
-        })
+        });
 
         if (!checkResponse.ok) {
-          throw new Error('Errore nel controllo esistenza prodotto')
+          throw new Error('Errore nel controllo esistenza prodotto');
         }
 
-        const { exists } = await checkResponse.json()
+        const { exists } = await checkResponse.json();
 
         if (exists) {
-          results.push({ status: 'Duplicato', product: productData })
-        } else {
-          // Crea il prodotto usando la nuova API di bulk upload
-          const createResponse = await fetch(`${process.env.API_URL}/api/products/bulk`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-              products: [productData]
-            }),
-            mode: 'cors',
-            credentials: 'include',
-          })
-
-          if (!createResponse.ok) {
-            const errorData = await createResponse.json();
-            throw new Error(errorData.error || 'Errore nella creazione del prodotto');
-          }
-
-          const responseData = await createResponse.json();
-          const createdProduct = responseData.created[0];
-
-          if (!createdProduct) {
-            throw new Error('Errore nella creazione del prodotto: nessun prodotto restituito');
-          }
-
-          results.push({ status: 'Creato', product: createdProduct });
+          results.push({ 
+            status: 'Duplicato', 
+            product: productData,
+            barcode: null,
+            error: 'Prodotto già esistente nel database'
+          });
+          continue;
         }
+
+        // Crea il prodotto usando la nuova API di bulk upload
+        const createResponse = await fetch(`${process.env.API_URL}/api/products/bulk`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            products: [productData],
+            attributes: {} // Aggiungo gli attributi vuoti richiesti dal backend
+          }),
+          mode: 'cors',
+          credentials: 'include',
+        });
+
+        if (!createResponse.ok) {
+          const errorData = await createResponse.json();
+          results.push({ 
+            status: 'Errore', 
+            product: productData,
+            barcode: null,
+            error: errorData.error || 'Errore nella creazione del prodotto'
+          });
+          continue; // Continua con il prossimo prodotto invece di lanciare un errore
+        }
+
+        const responseData = await createResponse.json();
+        
+        // Verifica se la risposta contiene i dati necessari
+        if (!responseData.created || responseData.created.length === 0) {
+          results.push({ 
+            status: 'Errore', 
+            product: productData,
+            barcode: null,
+            error: 'Nessun prodotto restituito dal server'
+          });
+          continue;
+        }
+
+        const createdProduct = responseData.created[0];
+        results.push({ 
+          status: 'Creato', 
+          product: createdProduct,
+          barcode: responseData.barcode
+        });
 
         setUploadProgress(Math.round(((i + 1) / previewData.length) * 100));
       }
 
-      // Gestione delle foto in bulk - solo se ci sono foto valide
-      const photosToUpload = previewData
-        .filter(row => 
-          // Verifica che la foto sia presente e valida
-          row.photo_value?.isImage && 
-          row.photo_value?.value && 
-          typeof row.photo_value.value === 'string' &&
-          row.photo_value.value !== 'N/A' // Esclude i valori N/A
-        )
-        .map(row => ({
-          article_code: String(row.article_code?.value || ''),
-          variant_code: String(row.variant_code?.value || ''),
-          url: String(row.photo_value?.value || ''),
-          isPublicUrl: row.photo_value?.value?.startsWith('https://pub-')
-        }))
-        .filter(photo => photo.article_code && photo.variant_code && photo.url);
-
-      // Carica le foto solo se ce ne sono
-      if (photosToUpload.length > 0) {
-        try {
-          const photosResponse = await fetch(`${process.env.API_URL}/api/products/bulk-photos`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-              photos: photosToUpload,
-              usePublicUrl: true 
-            }),
-            mode: 'cors',
-            credentials: 'include'
-          });
-
-          if (!photosResponse.ok) {
-            throw new Error('Errore nel caricamento delle foto');
-          }
-
-          const photosResult = await photosResponse.json();
-          console.log('Risultato caricamento foto:', photosResult);
-        } catch (photoError) {
-          console.error('Errore nel caricamento delle foto:', photoError);
-          toast({
-            title: 'Attenzione',
-            description: 'Prodotti creati con successo ma si sono verificati errori nel caricamento delle foto.',
-            variant: 'destructive',
-          });
-        }
-      }
-
-      // Genera report CSV
-      const csvContent = generateCSVReport(results)
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-      const link = document.createElement('a')
+      // Genera sempre il report CSV, anche se ci sono errori
+      const csvContent = generateCSVReport(results);
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
       if (link.download !== undefined) {
-        const url = URL.createObjectURL(blob)
-        link.setAttribute('href', url)
-        link.setAttribute('download', 'report_upload_prodotti.csv')
-        link.style.visibility = 'hidden'
-        document.body.appendChild(link)
-        link.click()
-        document.body.removeChild(link)
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', 'report_upload_prodotti.csv');
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
       }
+
+      // Prepara le statistiche
+      const stats = {
+        creati: results.filter(r => r.status === 'Creato').length,
+        duplicati: results.filter(r => r.status === 'Duplicato').length,
+        errori: results.filter(r => r.status === 'Errore').length,
+        totali: results.length
+      };
 
       setUploadStats({
-        success: results.filter(r => r.status === 'Creato').length,
-        total: results.length
+        success: stats.creati,
+        total: stats.totali
       });
-      setUploadSuccess(true);
-      
-      // Reset dopo 3 secondi
-      setTimeout(() => {
-        setUploadSuccess(false);
-        window.location.reload();
-      }, 3000);
 
+      // Mostra il toast con il risultato completo
       toast({
         title: 'Upload Completato',
-        description: `${results.length} prodotti processati. Scarica il report per i dettagli.`,
-      })
+        description: `${stats.creati} prodotti creati, ${stats.duplicati} duplicati, ${stats.errori} errori. Scarica il report per i dettagli.`,
+        variant: stats.errori > 0 ? 'destructive' : 'default'
+      });
+
+      // Se almeno un prodotto è stato creato con successo, mostra il messaggio di successo
+      if (stats.creati > 0) {
+        setUploadSuccess(true);
+        setTimeout(() => {
+          setUploadSuccess(false);
+          window.location.reload();
+        }, 3000);
+      }
     } catch (error) {
-      console.error('Errore upload:', error)
+      console.error('Errore upload:', error);
       
-      // Genera e scarica il report anche in caso di errori
+      // Genera comunque il report anche in caso di errore
       if (results.length > 0) {
-        const csvContent = generateCSVReport(results)
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-        const link = document.createElement('a')
+        const csvContent = generateCSVReport(results);
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
         if (link.download !== undefined) {
-          const url = URL.createObjectURL(blob)
-          link.setAttribute('href', url)
-          link.setAttribute('download', 'report_upload_prodotti.csv')
-          link.style.visibility = 'hidden'
-          document.body.appendChild(link)
-          link.click()
-          document.body.removeChild(link)
+          const url = URL.createObjectURL(blob);
+          link.setAttribute('href', url);
+          link.setAttribute('download', 'report_upload_prodotti.csv');
+          link.style.visibility = 'hidden';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
         }
       }
-      
+
       toast({
         title: 'Errore Upload',
         description: error instanceof Error ? error.message : 'Si è verificato un errore durante l\'upload. Riprova.',
         variant: 'destructive',
-      })
+      });
     } finally {
-      setIsUploading(false)
-      setUploadProgress(0)
+      setIsUploading(false);
+      setUploadProgress(0);
     }
-  }
-
-  const generateCSVReport = (results: any[]) => {
-    const headers = ['Codice Articolo', 'Codice Variante', 'Taglia', 'Stato']
-    const rows = results.map(result =>
-      [
-        result.product.article_code,
-        result.product.variant_code,
-        sizes.find(s => s.id === result.product.size_id)?.name || '',
-        result.status
-      ]
-    )
-    return [headers, ...rows].map(row => row.join(',')).join('\n')
-  }
+  };
 
   const handleCancel = () => {
     setFile(null)
@@ -1526,7 +1504,7 @@ export default function BulkPage() {
                       <TableCell>
                         {error.error.includes(':') ? (
                           <>
-                            <span className="font-bold">{error.error.split(':')[0]}</span>:
+                            {error.error.split(':')[0]}:
                             <span className="font-bold ml-1">{error.error.split(':')[1].trim()}</span>
                           </>
                         ) : (

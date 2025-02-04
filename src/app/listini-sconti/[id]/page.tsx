@@ -262,25 +262,85 @@ export default function AddProductsToDiscountList() {
 
   useEffect(() => {
     const fetchOtherListPrices = async () => {
-      if (selectedPriceList) {
-        try {
-          const response = await fetch(`${process.env.API_URL}/api/price-lists/${selectedPriceList}/products`)
-          if (!response.ok) throw new Error('Failed to fetch other list prices')
-          const data = await response.json()
-          const pricesMap: Record<number, number> = {}
-          data.forEach((item: { product_id: number; price: number }) => {
-            pricesMap[item.product_id] = item.price
-          })
-          setOtherListPrices(pricesMap)
-        } catch (error) {
-          console.error('Error fetching other list prices:', error)
-          toast.error('Errore nel caricamento dei prezzi del listino selezionato')
-        }
+      if (!selectedPriceList) {
+        setOtherListPrices({});
+        return;
       }
-    }
 
-    fetchOtherListPrices()
-  }, [selectedPriceList])
+      try {
+        const response = await fetch(`${process.env.API_URL}/api/price-lists/${selectedPriceList}/prices`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          credentials: 'include'
+        });
+
+        if (!response.ok) {
+          if (response.status === 404) {
+            setOtherListPrices({});
+            return;
+          }
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        
+        const pricesMap: Record<number, number> = {};
+        data.forEach((item: { product_id: number; price: number }) => {
+          if (item.product_id && typeof item.price === 'number') {
+            pricesMap[item.product_id] = item.price;
+          }
+        });
+
+        setOtherListPrices(pricesMap);
+        console.log('Prezzi caricati con successo:', pricesMap);
+      } catch (error) {
+        console.error('Error fetching other list prices:', error);
+        toast.error('Errore nel caricamento dei prezzi del listino selezionato');
+        setOtherListPrices({});
+      }
+    };
+
+    fetchOtherListPrices();
+  }, [selectedPriceList]);
+
+  // Aggiungi questo useEffect per aggiornare i prezzi base quando cambia baseCalc
+  useEffect(() => {
+    const updateBasePrices = () => {
+      const newBasePrices: Record<number, number> = {};
+      
+      products.forEach(product => {
+        let basePrice = 0;
+        
+        switch (baseCalc) {
+          case 'wholesale':
+            basePrice = product.wholesale_price;
+            break;
+          case 'retail':
+            basePrice = product.retail_price;
+            break;
+          case 'current_list':
+            basePrice = basePrices[product.id] || product.retail_price;
+            break;
+          case 'other_list':
+            basePrice = otherListPrices[product.id] || product.retail_price;
+            break;
+          case 'absolute':
+            basePrice = parseFloat(calcValue) || product.retail_price;
+            break;
+          default:
+            basePrice = product.retail_price;
+        }
+        
+        newBasePrices[product.id] = basePrice;
+      });
+      
+      setBasePrices(newBasePrices);
+    };
+
+    updateBasePrices();
+  }, [baseCalc, products, otherListPrices, calcValue]);
 
   const handleDiscountChange = (productId: number, discount: string) => {
     const discountValue = parseFloat(discount)
@@ -362,88 +422,135 @@ export default function AddProductsToDiscountList() {
   }
 
   const handleMassUpdate = () => {
-    const selectedProds = products.filter(p => selectedIds.includes(p.id))
+    if (selectedIds.length === 0) return;
+
+    const selectedProds = products.filter(p => selectedIds.includes(p.id));
     
     selectedProds.forEach(product => {
-      let basePrice = 0
+      // 1. Determina il prezzo base
+      let basePrice = 0;
       
-      // Determina il prezzo base
       switch (baseCalc) {
         case 'wholesale':
-          basePrice = product.wholesale_price
-          break
+          basePrice = product.wholesale_price;
+          break;
         case 'retail':
-          basePrice = product.retail_price
-          break
+          basePrice = product.retail_price;
+          break;
         case 'current_list':
-          basePrice = basePrices[product.id] || product.retail_price
-          break
+          basePrice = basePrices[product.id] || product.retail_price;
+          break;
         case 'other_list':
-          basePrice = otherListPrices[Number(selectedPriceList)] || product.retail_price
-          break
+          basePrice = otherListPrices[product.id] || product.retail_price;
+          break;
         case 'absolute':
-          basePrice = parseFloat(calcValue)
-          break
+          basePrice = parseFloat(calcValue) || product.retail_price;
+          break;
         default:
-          basePrice = product.retail_price
+          basePrice = product.retail_price;
       }
 
-      // Aggiorna il prezzo base per questo prodotto
+      // 2. Aggiorna il prezzo base nel nostro stato
       setBasePrices(prev => ({
         ...prev,
         [product.id]: basePrice
-      }))
+      }));
 
-      // Applica la regola di calcolo per lo sconto
-      const discountValue = parseFloat(calcValue) || 0
-      let finalPrice = basePrice
-      
-      switch (calcRule) {
-        case 'discount_percent':
-          finalPrice = basePrice * (1 - discountValue / 100)
-          break
-        case 'discount_absolute':
-          finalPrice = basePrice - discountValue
-          break
-        case 'divide_factor':
-          finalPrice = basePrice / discountValue
-          break
-        case 'markup_percent':
-          finalPrice = basePrice * (1 + discountValue / 100)
-          break
-        case 'markup_absolute':
-          finalPrice = basePrice + discountValue
-          break
-        case 'multiply_factor':
-          finalPrice = basePrice * discountValue
-          break
+      // 3. Calcola il prezzo finale in base alla regola
+      const calcValueNum = parseFloat(calcValue) || 0;
+      let finalPrice = basePrice;
+
+      if (baseCalc === 'absolute') {
+        finalPrice = calcValueNum;
+      } else {
+        switch (calcRule) {
+          case 'discount_percent':
+            finalPrice = basePrice * (1 - calcValueNum / 100);
+            break;
+          case 'discount_absolute':
+            finalPrice = basePrice - calcValueNum;
+            break;
+          case 'divide_factor':
+            if (calcValueNum !== 0) {
+              finalPrice = basePrice / calcValueNum;
+            }
+            break;
+          case 'markup_percent':
+            finalPrice = basePrice * (1 + calcValueNum / 100);
+            break;
+          case 'markup_absolute':
+            finalPrice = basePrice + calcValueNum;
+            break;
+          case 'multiply_factor':
+            finalPrice = basePrice * calcValueNum;
+            break;
+        }
       }
 
-      // Applica l'arrotondamento al prezzo finale
+      // 4. Applica l'arrotondamento se richiesto
       switch (rounding) {
         case '99_up':
-          if (Math.floor(finalPrice) === finalPrice) {
-            finalPrice = finalPrice + 0.99
-          } else {
-            finalPrice = Math.ceil(finalPrice) - 0.01
-          }
-          break
+          finalPrice = Math.ceil(finalPrice) - 0.01;
+          break;
         case '99_down':
-          finalPrice = Math.floor(finalPrice) - 0.01
-          break
+          finalPrice = Math.floor(finalPrice) - 0.01;
+          break;
         case '00_up':
-          finalPrice = Math.ceil(finalPrice)
-          break
+          finalPrice = Math.ceil(finalPrice);
+          break;
         case '00_down':
-          finalPrice = Math.floor(finalPrice)
-          break
+          finalPrice = Math.floor(finalPrice);
+          break;
       }
 
-      // Calcola lo sconto percentuale basato sul prezzo finale arrotondato
-      const discountPercentage = ((basePrice - finalPrice) / basePrice) * 100
-      handleDiscountChange(product.id, discountPercentage.toString())
-    })
-  }
+      // 5. Calcola lo sconto percentuale finale
+      let discountPercentage = 0;
+      if (basePrice > 0) {
+        discountPercentage = ((basePrice - finalPrice) / basePrice) * 100;
+        // Limita lo sconto tra 0 e 100
+        discountPercentage = Math.min(Math.max(discountPercentage, 0), 100);
+      }
+
+      // 6. Aggiorna lo stato degli sconti
+      setSelectedProducts(prev => ({
+        ...prev,
+        [product.id]: parseFloat(discountPercentage.toFixed(2))
+      }));
+    });
+
+    // 7. Notifica l'utente
+    toast.success(`Modifiche applicate a ${selectedProds.length} prodotti`);
+  };
+
+  // Aggiorna la validazione del bottone
+  const isMassUpdateDisabled = () => {
+    if (selectedIds.length === 0) return true;
+    if (!baseCalc) return true;
+    if (baseCalc === 'other_list' && !selectedPriceList) return true;
+    if (baseCalc !== 'absolute' && !calcRule) return true;
+    if (!calcValue || isNaN(parseFloat(calcValue))) return true;
+    return false;
+  };
+
+  const getBasePrice = (product: Product) => {
+    switch (baseCalc) {
+      case 'wholesale':
+        return product.wholesale_price || 0;
+      case 'retail':
+        return product.retail_price;
+      case 'current_list':
+        return basePrices[product.id] || product.retail_price;
+      case 'other_list':
+        if (!selectedPriceList || !otherListPrices[product.id]) {
+          return 0;
+        }
+        return otherListPrices[product.id];
+      case 'absolute':
+        return parseFloat(calcValue) || 0;
+      default:
+        return product.retail_price;
+    }
+  };
 
   return (
     <div className="flex-1 space-y-4 p-8 pt-6">
@@ -557,12 +664,17 @@ export default function AddProductsToDiscountList() {
                 <select 
                   className="w-full p-2 border rounded-md"
                   value={selectedPriceList}
-                  onChange={(e) => setSelectedPriceList(e.target.value)}
+                  onChange={(e) => {
+                    setSelectedPriceList(e.target.value);
+                    setOtherListPrices({});
+                  }}
                 >
                   <option value="">Seleziona listino</option>
-                  {priceLists.map(list => (
-                    <option key={list.id} value={list.id}>{list.name}</option>
-                  ))}
+                  {priceLists
+                    .filter(list => list.id.toString() !== params.id)
+                    .map(list => (
+                      <option key={list.id} value={list.id}>{list.name}</option>
+                    ))}
                 </select>
               </div>
             )}
@@ -623,7 +735,7 @@ export default function AddProductsToDiscountList() {
 
             <Button 
               className="w-full"
-              disabled={selectedIds.length === 0 || !baseCalc || (!calcRule && baseCalc !== 'absolute') || !calcValue}
+              disabled={isMassUpdateDisabled()}
               onClick={handleMassUpdate}
             >
               Applica a Selezionati ({selectedIds.length})
@@ -659,8 +771,8 @@ export default function AddProductsToDiscountList() {
                     <TableHead>Taglia</TableHead>
                     <TableHead className="text-right">Disp.</TableHead>
                     <TableHead className="text-right">Prezzo Ingrosso</TableHead>
-                    <TableHead className="text-right">Prezzo Dettaglio</TableHead>
                     <TableHead className="text-right">Prezzo Base</TableHead>
+                    <TableHead className="text-right">Prezzo Retail</TableHead>
                     <TableHead className="text-right">Sconto %</TableHead>
                     <TableHead className="text-right">Prezzo Scontato</TableHead>
                   </TableRow>
@@ -720,10 +832,10 @@ export default function AddProductsToDiscountList() {
                           {formatCurrency(product.wholesale_price)}
                         </TableCell>
                         <TableCell className="py-1 text-right">
-                          {formatCurrency(product.retail_price)}
+                          {getBasePrice(product) === 0 ? '-' : formatCurrency(getBasePrice(product))}
                         </TableCell>
                         <TableCell className="py-1 text-right">
-                          {formatCurrency(basePrices[product.id] || product.retail_price)}
+                          {formatCurrency(product.retail_price)}
                         </TableCell>
                         <TableCell className="py-1 text-right">
                           <Input

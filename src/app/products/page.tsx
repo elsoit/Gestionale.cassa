@@ -456,6 +456,7 @@ function TableContent() {
       const [productResponse, brandData, sizeData, sizeGroupData, statusData, availabilityData] = await Promise.all([
         fetch(`${process.env.API_URL}/api/products?${new URLSearchParams({
           search: searchTerm,
+          searchBarcode: 'true',
           filters: JSON.stringify({
             ...filters,
             availability: availabilityFilter.type ? availabilityFilter : undefined,
@@ -1055,7 +1056,7 @@ function TableContent() {
             <div className="flex-1">
               <Input
                 type="search"
-                placeholder="Cerca per codice articolo, variante, brand..."
+                placeholder="Cerca per codice articolo, variante, brand, codice a barre..."
                 value={searchTerm}
                 onChange={(e) => handleSearchChange(e.target.value)}
                 className="w-full"
