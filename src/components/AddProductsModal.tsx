@@ -1,11 +1,12 @@
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useEffect } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Filter, Search, X } from 'lucide-react'
+import { Filter, Search, X, Shirt } from 'lucide-react'
 import { cn } from "@/lib/utils"
+import Image from 'next/image'
 
 interface Product {
   id: number
@@ -82,6 +83,8 @@ export function AddProductsModal({ isOpen, onOpenChange, onAddProduct, warehouse
   })
 
   const [modalSearchTerm, setModalSearchTerm] = useState('')
+  const [mainPhotos, setMainPhotos] = useState<Record<string, string>>({})
+  const [photoLoadingStates, setPhotoLoadingStates] = useState<Record<string, boolean>>({})
 
   // Funzione per caricare i dati della modale
   const loadModalData = useCallback(async () => {
@@ -159,14 +162,14 @@ export function AddProductsModal({ isOpen, onOpenChange, onAddProduct, warehouse
       console.error('Error loading modal data:', error)
       setModalState(prev => ({ ...prev, isLoading: false }))
     }
-  }, [])
+  }, [modalSearchTerm, modalState.selectedFilters, warehouseId]);
 
   // Carica i dati quando si apre la modale
-  React.useEffect(() => {
+  useEffect(() => {
     if (isOpen) {
       loadModalData()
     }
-  }, [isOpen])
+  }, [isOpen, loadModalData])
 
   // Funzione per applicare i filtri
   const applyFilters = useCallback((
@@ -245,7 +248,6 @@ export function AddProductsModal({ isOpen, onOpenChange, onAddProduct, warehouse
   }, [applyFilters, modalSearchTerm, modalState.selectedFilters]);
 
   // Handler per il cambio della ricerca nella modale
-
   const handleModalSearch = useCallback((value: string) => {
    setModalSearchTerm(value);
      applyFilters(modalState.selectedFilters, value);
@@ -302,6 +304,50 @@ export function AddProductsModal({ isOpen, onOpenChange, onAddProduct, warehouse
       return aUpper.localeCompare(bUpper);
     });
   };
+
+  const fetchMainPhoto = async (article_code: string, variant_code: string) => {
+    try {
+      const response = await fetch(
+        `${process.env.API_URL}/api/products/photos/${article_code}/${variant_code}/main`,
+        { credentials: 'include' }
+      );
+      if (!response.ok) return null;
+      const data = await response.json();
+      return data.url;
+    } catch (error) {
+      console.error('Error fetching main photo:', error);
+      return null;
+    }
+  };
+
+  const handlePhotoLoad = (key: string) => {
+    setPhotoLoadingStates(prev => ({ ...prev, [key]: false }));
+  };
+
+  const handlePhotoError = (key: string) => {
+    setPhotoLoadingStates(prev => ({ ...prev, [key]: false }));
+  };
+
+  useEffect(() => {
+    const loadPhotos = async () => {
+      const photosMap: Record<string, string> = {};
+      const uniqueProducts = new Set(
+        modalState.filteredProducts.map(p => `${p.article_code}-${p.variant_code}`)
+      );
+
+      for (const key of Array.from(uniqueProducts)) {
+        const [article_code, variant_code] = key.split('-');
+        const photoUrl = await fetchMainPhoto(article_code, variant_code);
+        if (photoUrl) {
+          photosMap[key] = photoUrl;
+        }
+      }
+
+      setMainPhotos(photosMap);
+    };
+
+    loadPhotos();
+  }, [modalState.filteredProducts]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -565,6 +611,7 @@ export function AddProductsModal({ isOpen, onOpenChange, onAddProduct, warehouse
                 <Table>
                   <TableHeader className="sticky top-0 bg-white z-10">
                     <TableRow className="border-b">
+                      <TableHead className="w-[50px] bg-white font-semibold">Foto</TableHead>
                       <TableHead className="w-[200px] bg-white font-semibold">Brand</TableHead>
                       <TableHead className="w-[200px] bg-white font-semibold">Codice Articolo</TableHead>
                       <TableHead className="w-[100px] bg-white font-semibold">Codice Variante</TableHead>
@@ -589,6 +636,34 @@ export function AddProductsModal({ isOpen, onOpenChange, onAddProduct, warehouse
                             onOpenChange(false);
                           }}
                         >
+                          <TableCell className="w-[50px]">
+                            {mainPhotos[`${group.article_code}-${group.variant_code}`] ? (
+                              <div className="relative w-10 h-10 bg-white rounded border">
+                                <div className={cn(
+                                  "absolute inset-1",
+                                  photoLoadingStates[`${group.article_code}-${group.variant_code}`] && "animate-pulse bg-gray-200"
+                                )}>
+                                  <Image
+                                    src={mainPhotos[`${group.article_code}-${group.variant_code}`]}
+                                    alt={`${group.article_code} - ${group.variant_code}`}
+                                    fill
+                                    sizes="(max-width: 40px) 100vw"
+                                    className={cn(
+                                      "rounded object-contain p-1",
+                                      photoLoadingStates[`${group.article_code}-${group.variant_code}`] && "opacity-0"
+                                    )}
+                                    style={{ aspectRatio: "1/1" }}
+                                    onLoadingComplete={() => handlePhotoLoad(`${group.article_code}-${group.variant_code}`)}
+                                    onError={() => handlePhotoError(`${group.article_code}-${group.variant_code}`)}
+                                  />
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="w-10 h-10 bg-gray-100 rounded border flex items-center justify-center">
+                                <Shirt className="w-4 h-4 text-gray-400" />
+                              </div>
+                            )}
+                          </TableCell>
                           <TableCell>{group.sizes[0].brand_name}</TableCell>
                           <TableCell>{group.article_code}</TableCell>
                           <TableCell>{group.variant_code}</TableCell>

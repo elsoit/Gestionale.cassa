@@ -375,6 +375,8 @@ function TableContent() {
   const [isPhotosManagementOpen, setIsPhotosManagementOpen] = useState(false);
   const [isPhotoGalleryOpen, setIsPhotoGalleryOpen] = useState(false);
   const [selectedGalleryProduct, setSelectedGalleryProduct] = useState<{ article_code: string; variant_code: string } | null>(null);
+  const [totalVariants, setTotalVariants] = useState(0)
+  const [totalAvailability, setTotalAvailability] = useState(0)
 
   // Funzione per aggiornare l'URL con i filtri correnti
   const updateUrlParams = (newSearchTerm?: string, newFilters?: Filters, newAvailability?: AvailabilityFilter, newPriceRanges?: PriceRanges) => {
@@ -1020,11 +1022,35 @@ function TableContent() {
     return products.filter(p => p.status_name?.toLowerCase() !== 'deleted');
   };
 
+  // Aggiorna i contatori quando i prodotti cambiano
+  useEffect(() => {
+    // Calcola il numero totale di varianti uniche (combinazione articolo-variante)
+    const uniqueVariants = new Set(
+      products.map(p => `${p.article_code}-${p.variant_code}`)
+    ).size
+
+    // Calcola la disponibilità totale
+    const totalAvail = products.reduce((sum, p) => sum + (p.total_availability || 0), 0)
+
+    setTotalVariants(uniqueVariants)
+    setTotalAvailability(totalAvail)
+  }, [products])
+
   return (
     <div className="container mx-auto py-10">
       {/* Header principale */}
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Gestione Prodotti</h1>
+        <div className="flex items-center gap-4">
+          <h1 className="text-2xl font-bold">Gestione Prodotti</h1>
+          <div className="flex gap-2">
+            <Badge variant="secondary" className="text-sm">
+              {totalVariants} varianti
+            </Badge>
+            <Badge variant="secondary" className="text-sm">
+              {totalAvailability} disponibili
+            </Badge>
+          </div>
+        </div>
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
             <Label htmlFor="show-deleted" className="text-sm text-muted-foreground">Mostra Eliminati</Label>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { TableCell, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -50,6 +50,7 @@ export function LoadProductTableRow({
 }: LoadProductTableRowProps) {
   const [photoLoadingStates, setPhotoLoadingStates] = useState<Record<string, boolean>>({});
   const [costInputs, setCostInputs] = useState<Record<string, string>>({});
+  const [mainPhotos, setMainPhotos] = useState<Record<string, string>>({});
 
   const handlePhotoLoad = (key: string) => {
     setPhotoLoadingStates(prev => ({ ...prev, [key]: false }));
@@ -92,6 +93,37 @@ export function LoadProductTableRow({
   const totalCost = variants.reduce((sum, variant) => sum + ((variant.cost || 0) * (variant.quantity || 0)), 0)
   const averageCost = totalQuantity > 0 ? totalCost / totalQuantity : 0
 
+  const fetchMainPhoto = async (article_code: string, variant_code: string) => {
+    try {
+      const response = await fetch(
+        `${process.env.API_URL}/api/products/photos/${article_code}/${variant_code}/main`,
+        { credentials: 'include' }
+      );
+      if (!response.ok) return null;
+      const data = await response.json();
+      return data.url;
+    } catch (error) {
+      console.error('Error fetching main photo:', error);
+      return null;
+    }
+  };
+
+  useEffect(() => {
+    const loadPhotos = async () => {
+      const photosMap: Record<string, string> = {};
+      const key = `${main.article_code}-${main.variant_code}`;
+      
+      const photoUrl = await fetchMainPhoto(main.article_code, main.variant_code);
+      if (photoUrl) {
+        photosMap[key] = photoUrl;
+      }
+      
+      setMainPhotos(photosMap);
+    };
+
+    loadPhotos();
+  }, [main.article_code, main.variant_code]);
+
   return (
     <React.Fragment>
       {/* Riga principale */}
@@ -107,14 +139,14 @@ export function LoadProductTableRow({
       >
         <TableCell className="py-1">
           <div className="flex items-center gap-2">
-            {main.mainPhotoUrl ? (
+            {mainPhotos[`${main.article_code}-${main.variant_code}`] ? (
               <div className="relative w-12 h-12 bg-white rounded border">
                 <div className={cn(
                   "absolute inset-1",
                   photoLoadingStates[`${main.article_code}-${main.variant_code}`] && "animate-pulse bg-gray-200"
                 )}>
                   <Image
-                    src={main.mainPhotoUrl}
+                    src={mainPhotos[`${main.article_code}-${main.variant_code}`]}
                     alt={`${main.article_code} - ${main.variant_code}`}
                     fill
                     sizes="(max-width: 48px) 100vw"
