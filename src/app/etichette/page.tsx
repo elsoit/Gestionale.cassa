@@ -323,9 +323,11 @@ export default function LabelPrinting() {
       
       if (searchTerm) {
         const searchLower = searchTerm.toLowerCase()
+        const brandName = product.brand_id ? brands[product.brand_id]?.name?.toLowerCase() || '' : ''
         return (
           product.article_code.toLowerCase().includes(searchLower) ||
-          product.variant_code.toLowerCase().includes(searchLower)
+          product.variant_code.toLowerCase().includes(searchLower) ||
+          brandName.includes(searchLower)
         )
       }
       
