@@ -26,6 +26,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { LAYOUTS, LayoutType } from './layouts'
+import { Shirt } from 'lucide-react'
 
 const formatPrice = (price: number | string | null | undefined): string => {
   const numPrice = typeof price === 'string' ? parseFloat(price) : price
@@ -620,13 +621,19 @@ export default function LabelPrinting() {
                       </TableCell>
                       <TableCell>
                         <div className="relative h-12 w-12 rounded-md overflow-hidden border border-gray-200">
-                          <Image
-                            src={mainPhotos[`${product.article_code}-${product.variant_code}`] || '/placeholder.png'}
-                            alt={product.article_code}
-                            className="object-cover"
-                            fill
-                            sizes="(max-width: 48px) 100vw"
-                          />
+                          {mainPhotos[`${product.article_code}-${product.variant_code}`] ? (
+                            <Image
+                              src={mainPhotos[`${product.article_code}-${product.variant_code}`] || '/placeholder.png'}
+                              alt={product.article_code}
+                              className="object-cover"
+                              fill
+                              sizes="(max-width: 48px) 100vw"
+                            />
+                          ) : (
+                            <div className="w-full h-full bg-gray-100 flex items-center justify-center">
+                              <Shirt className="w-5 h-5 text-gray-400" />
+                            </div>
+                          )}
                         </div>
                       </TableCell>
                       <TableCell className="font-medium">{product.article_code}</TableCell>
