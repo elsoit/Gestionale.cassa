@@ -17,7 +17,9 @@ import {
   ShoppingCart,
   Truck,
   Users,
-  Tag
+  Tag,
+  Menu,
+  X
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
@@ -29,16 +31,28 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 
 export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const [userAccess, setUserAccess] = useState<string>('');
+  const [isMobile, setIsMobile] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
     // Recupera il tipo di accesso dal localStorage
     const access = localStorage.getItem('userAccess');
     setUserAccess(access || '');
+
+    // Controlla se il dispositivo è mobile
+    const checkIfMobile = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+
+    checkIfMobile();
+    window.addEventListener('resize', checkIfMobile);
+    return () => window.removeEventListener('resize', checkIfMobile);
   }, []);
 
   const handleLogout = () => {
@@ -78,6 +92,57 @@ export function Sidebar() {
 
   // Seleziona il menu appropriato in base al tipo di accesso
   const navigation = userAccess === 'limited' ? limitedNavigation : fullNavigation;
+
+  if (isMobile) {
+    return (
+      <Sheet open={isOpen} onOpenChange={setIsOpen}>
+        <SheetTrigger asChild>
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="fixed top-3 left-3 z-50 bg-white shadow-md rounded-full h-10 w-10"
+          >
+            <Menu className="h-5 w-5" />
+          </Button>
+        </SheetTrigger>
+        <SheetContent side="left" className="w-[250px] p-0">
+          <div className="flex flex-col h-full">
+            <div className="flex-1 py-4">
+              {navigation.map((item) => {
+                const isActive = pathname.startsWith(item.href);
+                return (
+                  <Button
+                    key={item.name}
+                    variant={isActive ? "secondary" : "ghost"}
+                    className={cn(
+                      "w-full justify-start gap-4 px-4 py-2 h-12",
+                      isActive && "bg-muted"
+                    )}
+                    onClick={() => {
+                      router.push(item.href);
+                      setIsOpen(false);
+                    }}
+                  >
+                    <item.icon className="h-5 w-5" />
+                    <span>{item.name}</span>
+                  </Button>
+                );
+              })}
+            </div>
+            
+            <Button
+              variant="ghost"
+              className="w-full justify-start gap-4 px-4 py-2 h-12 text-red-500 hover:text-red-700 hover:bg-red-100/50"
+              onClick={handleLogout}
+            >
+              <LogOut className="h-5 w-5" />
+              <span>Esci</span>
+            </Button>
+          </div>
+        </SheetContent>
+      </Sheet>
+    );
+  }
 
   return (
     <div className="flex h-full w-14 flex-col fixed left-0 top-0 bottom-0 bg-background border-r">

@@ -55,6 +55,7 @@ export default function LoadsPage() {
   const [statuses, setStatuses] = useState<Status[]>([])
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
   const [newLoad, setNewLoad] = useState({
     code: '',
     supply_id: undefined as number | undefined,
@@ -72,6 +73,17 @@ export default function LoadsPage() {
     fetchSupplies()
     fetchStatuses()
     fetchWarehouses()
+  }, [])
+
+  useEffect(() => {
+    const checkIfMobile = () => {
+      setIsMobile(window.innerWidth <= 768)
+    }
+    
+    checkIfMobile()
+    window.addEventListener('resize', checkIfMobile)
+    
+    return () => window.removeEventListener('resize', checkIfMobile)
   }, [])
 
   const fetchLoads = async () => {
@@ -342,6 +354,14 @@ export default function LoadsPage() {
 
   const sortedLoads = loads;
 
+  const handleLoadClick = (loadId: number) => {
+    if (isMobile) {
+      router.push(`/loads/${loadId}/mobile`)
+    } else {
+      router.push(`/loads/${loadId}`)
+    }
+  }
+
   return (
     <div className="container mx-auto p-4">
       <div className="flex justify-between items-center mb-4">
@@ -414,6 +434,65 @@ export default function LoadsPage() {
           </DialogContent>
         </Dialog>
       </div>
+
+      {isMobile ? (
+        <div className="space-y-4">
+          {sortedLoads.map((load) => (
+            <div
+              key={load.id}
+              className="bg-white rounded-lg shadow p-4 space-y-3 active:bg-gray-50"
+              onClick={() => handleLoadClick(load.id)}
+            >
+              <div className="flex justify-between items-start">
+                <div>
+                  <h3 className="font-medium">{load.code}</h3>
+                  <p className="text-sm text-gray-500">
+                    {supplies.find(s => s.id === load.supply_id)?.name || '-'}
+                  </p>
+                </div>
+                <span className={`inline-flex items-center rounded-md border px-2 py-1 text-xs font-medium ${getStatusBadgeStyle(load.status_id)}`}>
+                  {statuses.find(s => s.id === load.status_id)?.name || '-'}
+                </span>
+              </div>
+
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500">
+                  {load.created_at ? new Date(load.created_at).toLocaleString('it-IT', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: false
+                  }) : '-'}
+                </span>
+                <span className="text-gray-500">
+                  {warehouses.find(w => w.id === load.warehouse_id)?.name || '-'}
+                </span>
+              </div>
+
+              <div className="flex justify-between pt-2 border-t">
+                <div>
+                  <p className="text-xs text-gray-500">Totale Articoli</p>
+                  <p className="font-medium">
+                    {typeof load.total_items === 'number' ? 
+                      Math.floor(load.total_items) : 
+                      0}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs text-gray-500">Totale Importo</p>
+                  <p className="font-medium">
+                    {typeof load.total_cost === 'number' ? 
+                      `€ ${Number(load.total_cost).toFixed(2)}`.replace('.', ',') : 
+                      '€ 0,00'}
+                  </p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
       <div className="rounded-md border">
         <Table>
           <TableHeader>
@@ -433,7 +512,7 @@ export default function LoadsPage() {
               <TableRow
                 key={load.id}
                 className="cursor-pointer hover:bg-gray-100"
-                onClick={() => router.push(`/loads/${load.id}`)}
+                  onClick={() => handleLoadClick(load.id)}
               >
                 <TableCell>{load.code}</TableCell>
                 <TableCell>{supplies.find(s => s.id === load.supply_id)?.name || '-'}</TableCell>
@@ -546,8 +625,8 @@ export default function LoadsPage() {
           </TableBody>
         </Table>
       </div>
+      )}
 
-      {/* Dialog di conferma */}
       <Dialog open={!!selectedLoadAction} onOpenChange={() => setSelectedLoadAction(null)}>
         <DialogContent>
           <DialogHeader>
